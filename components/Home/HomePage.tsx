@@ -112,13 +112,6 @@ export function HomePage() {
   return (
     <div className="w-full max-w-2xl text-center space-y-8">
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Welcome to Base Farcaster MiniApp!</h2>
-        <p className="text-lg text-gray-300">
-          This template demonstrates all Mini App capabilities and lets you easily modify it to build your own Mini Apps.
-        </p>
-      </div>
-
-      <div className="space-y-4">
         <h3 className="text-xl font-semibold">What's included:</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
           <div className="bg-white/5 rounded-lg p-4">
