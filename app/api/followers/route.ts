@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
+
+const neynarClient = new NeynarAPIClient(new Configuration({
+  apiKey: process.env.NEYNAR_API_KEY || ''
+}));
 
 export async function GET(request: NextRequest) {
   try {
