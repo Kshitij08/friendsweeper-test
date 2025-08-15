@@ -33,8 +33,8 @@ interface MinesweeperProps {
 }
 
 export function Minesweeper({ followers = [] }: MinesweeperProps) {
-  const GRID_SIZE = 7
-  const BOMB_COUNT = 7
+  const GRID_SIZE = 8
+  const BOMB_COUNT = 8
 
   const [gameState, setGameState] = useState<GameState>({
     grid: [],
@@ -386,9 +386,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       </div>
 
                    <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 sm:p-6 rounded-2xl border border-gray-700 shadow-2xl">
-        <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex flex-col gap-1 sm:gap-2">
           {gameState.grid.map((row, rowIndex) => (
-            <div key={rowIndex} className="flex gap-3 sm:gap-4 justify-center">
+            <div key={rowIndex} className="flex gap-1 sm:gap-2 justify-center">
               {row.map((cell, colIndex) => (
                 <button
                   key={`${rowIndex}-${colIndex}`}
