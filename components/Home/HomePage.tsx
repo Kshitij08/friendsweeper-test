@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { Settings } from './Settings'
 import { FollowerList } from './FollowerList'
+import { Minesweeper } from './Minesweeper'
 
 export function HomePage() {
   const [showSettings, setShowSettings] = useState(false)
   const [showFollowers, setShowFollowers] = useState(false)
+  const [showMinesweeper, setShowMinesweeper] = useState(false)
 
   if (showSettings) {
     return (
@@ -38,6 +40,23 @@ export function HomePage() {
           </button>
         </div>
         <FollowerList />
+      </div>
+    )
+  }
+
+  if (showMinesweeper) {
+    return (
+      <div className="w-full max-w-4xl">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Minesweeper Game</h2>
+          <button
+            onClick={() => setShowMinesweeper(false)}
+            className="bg-white text-black rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors"
+          >
+            ← Back to Home
+          </button>
+        </div>
+        <Minesweeper />
       </div>
     )
   }
@@ -82,10 +101,20 @@ export function HomePage() {
             <h4 className="font-semibold mb-2">👥 Follower Analytics</h4>
             <p className="text-sm text-gray-300">View top 5 followers of any Farcaster user</p>
           </div>
+          <div className="bg-white/5 rounded-lg p-4">
+            <h4 className="font-semibold mb-2">🎮 Minesweeper Game</h4>
+            <p className="text-sm text-gray-300">Classic 10x10 minesweeper with 10 bombs</p>
+          </div>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <button
+          onClick={() => setShowMinesweeper(true)}
+          className="bg-green-600 text-white rounded-md px-8 py-3 text-lg font-medium hover:bg-green-700 transition-colors"
+        >
+          🎮 Play Minesweeper
+        </button>
         <button
           onClick={() => setShowFollowers(true)}
           className="bg-blue-600 text-white rounded-md px-8 py-3 text-lg font-medium hover:bg-blue-700 transition-colors"
