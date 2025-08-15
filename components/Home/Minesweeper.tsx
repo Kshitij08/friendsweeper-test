@@ -371,34 +371,33 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-             <div className="grid grid-cols-8 gap-3 bg-gray-800 p-6 rounded-lg">
+      <div className="grid grid-cols-8 gap-3 bg-gray-800 p-6 rounded-lg">
         {gameState.grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => (
-                         <button
-               key={`${rowIndex}-${colIndex}`}
-               onClick={() => handleCellClick(rowIndex, colIndex)}
-               onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
-               onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
-               onTouchEnd={handleTouchEnd}
-               onTouchMove={handleTouchMove}
-                                                               className={`
-                   w-12 h-12 flex items-center justify-center text-sm font-bold rounded
-                   ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
-                   ${getCellColor(cell)}
-                   transition-colors
-                   touch-manipulation
-                 `}
-               disabled={gameState.gameOver || gameState.gameWon}
-             >
-               {getCellContent(cell)}
-             </button>
+            <button
+              key={`${rowIndex}-${colIndex}`}
+              onClick={() => handleCellClick(rowIndex, colIndex)}
+              onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
+              onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
+              onTouchEnd={handleTouchEnd}
+              onTouchMove={handleTouchMove}
+              className={`
+                w-12 h-12 flex items-center justify-center text-sm font-bold rounded
+                ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
+                ${getCellColor(cell)}
+                transition-colors
+                touch-manipulation
+              `}
+              disabled={gameState.gameOver || gameState.gameWon}
+            >
+              {getCellContent(cell)}
+            </button>
           ))
         )}
       </div>
 
-                          <div className="text-center mt-6 text-sm text-gray-300">
-          <p>Tap to reveal • Long press or right-click to flag</p>
-        </div>
+      <div className="text-center mt-6 text-sm text-gray-300">
+        <p>Tap to reveal • Long press or right-click to flag</p>
       </div>
 
       {/* Game Over Modal */}
