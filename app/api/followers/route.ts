@@ -10,6 +10,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid');
 
+    console.log('API called with FID:', fid);
+    console.log('NEYNAR_API_KEY exists:', !!process.env.NEYNAR_API_KEY);
+
     if (!fid) {
       return NextResponse.json(
         { error: 'FID parameter is required' },
@@ -25,40 +28,53 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch followers using Neynar API
+    console.log('Attempting to fetch followers for FID:', fid);
+
+    // Fetch followers using the correct Neynar API method
     const followersResponse = await neynarClient.fetchUserFollowers({
       fid: parseInt(fid),
       limit: 5, // Get top 5 followers
-      viewerFid: parseInt(fid) // Use the same FID as viewer for context
+      viewerFid: parseInt(fid), // Use the same FID as viewer for context
+      sortType: 'desc_chron' // Sort by chronological order
     });
 
+    console.log('Neynar API response received:', !!followersResponse);
+
     if (!followersResponse || !followersResponse.users) {
+      console.error('Invalid response from Neynar API:', followersResponse);
       return NextResponse.json(
         { error: 'Failed to fetch followers from Neynar API' },
         { status: 500 }
       );
     }
 
+    console.log('Number of followers found:', followersResponse.users.length);
+
     // Transform the response to match our expected format
-    const followers = followersResponse.users.map((user: any) => ({
-      fid: user.fid,
-      username: user.username,
-      displayName: user.display_name || user.username,
-      pfpUrl: user.pfp_url || '',
-      followerCount: user.follower_count,
-      followingCount: user.following_count,
-      verifiedAddresses: user.verified_addresses?.eth_addresses || []
+    const followers = followersResponse.users.map((follower: any) => ({
+      fid: follower.user.fid,
+      username: follower.user.username,
+      displayName: follower.user.display_name || follower.user.username,
+      pfpUrl: follower.user.pfp_url || '',
+      followerCount: follower.user.follower_count,
+      followingCount: follower.user.following_count,
+      verifiedAddresses: follower.user.verified_addresses?.eth_addresses || []
     }));
 
     return NextResponse.json({
       success: true,
       followers: followers,
       totalFollowers: followersResponse.users.length,
-      message: `Found ${followers.length} followers`
+      message: `Found ${followers.length} followers for user`
     });
 
   } catch (error) {
     console.error('Error fetching followers:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return NextResponse.json(
       { 
         error: 'Failed to fetch followers',
