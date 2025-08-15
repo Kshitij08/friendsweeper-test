@@ -61,12 +61,12 @@ export function FollowerList() {
 
   return (
     <div className="w-full max-w-2xl space-y-6">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold">Top 5 Followers</h2>
-        <p className="text-gray-300">
-          Enter a FID to see the top 5 followers of that user
-        </p>
-      </div>
+             <div className="text-center space-y-4">
+         <h2 className="text-2xl font-bold">Top 8 Followers</h2>
+         <p className="text-gray-300">
+           Enter a FID to see the top 8 followers of that user
+         </p>
+       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex gap-2">

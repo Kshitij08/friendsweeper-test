@@ -2,11 +2,22 @@
 
 import { useState, useEffect } from 'react'
 
+interface Follower {
+  fid: number
+  username: string
+  displayName: string
+  pfpUrl: string
+  followerCount: number
+  followingCount: number
+  verifiedAddresses: string[]
+}
+
 interface Cell {
   isBomb: boolean
   isRevealed: boolean
   isFlagged: boolean
   neighborBombs: number
+  follower?: Follower
 }
 
 interface GameState {
@@ -16,9 +27,13 @@ interface GameState {
   bombsRemaining: number
 }
 
-export function Minesweeper() {
-  const GRID_SIZE = 10
-  const BOMB_COUNT = 10
+interface MinesweeperProps {
+  followers?: Follower[]
+}
+
+export function Minesweeper({ followers = [] }: MinesweeperProps) {
+  const GRID_SIZE = 8
+  const BOMB_COUNT = 8
 
   const [gameState, setGameState] = useState<GameState>({
     grid: [],
@@ -61,6 +76,10 @@ export function Minesweeper() {
       // Don't place bomb on first click or if already a bomb
       if (!newGrid[row][col].isBomb && (row !== firstRow || col !== firstCol)) {
         newGrid[row][col].isBomb = true
+        // Assign a follower to this bomb if available
+        if (bombsPlaced < followers.length) {
+          newGrid[row][col].follower = followers[bombsPlaced]
+        }
         bombsPlaced++
       }
     }
@@ -256,6 +275,15 @@ export function Minesweeper() {
       return cell.isFlagged ? '🚩' : ''
     }
     if (cell.isBomb) {
+      if (cell.follower?.pfpUrl) {
+        return (
+          <img
+            src={cell.follower.pfpUrl}
+            alt={cell.follower.displayName}
+            className="w-8 h-8 rounded-full object-cover"
+          />
+        )
+      }
       return '💣'
     }
     if (cell.neighborBombs === 0) {
@@ -288,7 +316,11 @@ export function Minesweeper() {
   return (
     <div className="w-full max-w-2xl mx-auto p-4">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold mb-4">Minesweeper</h2>
+        {followers.length > 0 && (
+          <p className="text-gray-300 mb-4">
+            Your top {followers.length} followers are hidden as bombs! 💣
+          </p>
+        )}
         <div className="flex justify-between items-center mb-4">
           <div className="text-lg">
             Bombs: {gameState.bombsRemaining}
@@ -314,7 +346,7 @@ export function Minesweeper() {
         )}
       </div>
 
-      <div className="grid grid-cols-10 gap-1 bg-gray-800 p-4 rounded-lg">
+             <div className="grid grid-cols-8 gap-2 bg-gray-800 p-6 rounded-lg">
         {gameState.grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => (
                          <button
@@ -324,13 +356,13 @@ export function Minesweeper() {
                onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
                onTouchEnd={handleTouchEnd}
                onTouchMove={handleTouchMove}
-               className={`
-                 w-8 h-8 flex items-center justify-center text-sm font-bold rounded
-                 ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
-                 ${getCellColor(cell)}
-                 transition-colors
-                 touch-manipulation
-               `}
+                               className={`
+                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded
+                  ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
+                  ${getCellColor(cell)}
+                  transition-colors
+                  touch-manipulation
+                `}
                disabled={gameState.gameOver || gameState.gameWon}
              >
                {getCellContent(cell)}

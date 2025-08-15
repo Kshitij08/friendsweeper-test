@@ -1,14 +1,57 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useFrame } from '@/components/farcaster-provider'
 import { Settings } from './Settings'
 import { FollowerList } from './FollowerList'
 import { Minesweeper } from './Minesweeper'
 
+interface Follower {
+  fid: number
+  username: string
+  displayName: string
+  pfpUrl: string
+  followerCount: number
+  followingCount: number
+  verifiedAddresses: string[]
+}
+
 export function HomePage() {
+  const { context } = useFrame()
   const [showSettings, setShowSettings] = useState(false)
   const [showFollowers, setShowFollowers] = useState(false)
   const [showMinesweeper, setShowMinesweeper] = useState(false)
+  const [followers, setFollowers] = useState<Follower[]>([])
+  const [loadingFollowers, setLoadingFollowers] = useState(false)
+
+  const fetchFollowers = async () => {
+    if (!context?.user?.fid) return
+
+    setLoadingFollowers(true)
+    try {
+      const response = await fetch(`/api/followers?fid=${context.user.fid}`)
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setFollowers(data.followers)
+      } else {
+        console.error('Failed to fetch followers:', data.error)
+        setFollowers([])
+      }
+    } catch (error) {
+      console.error('Error fetching followers:', error)
+      setFollowers([])
+    } finally {
+      setLoadingFollowers(false)
+    }
+  }
+
+  // Fetch followers when component mounts or when user FID changes
+  useEffect(() => {
+    if (context?.user?.fid) {
+      fetchFollowers()
+    }
+  }, [context?.user?.fid])
 
   if (showSettings) {
     return (
@@ -48,7 +91,6 @@ export function HomePage() {
     return (
       <div className="w-full max-w-4xl">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Minesweeper Game</h2>
           <button
             onClick={() => setShowMinesweeper(false)}
             className="bg-white text-black rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors"
@@ -56,7 +98,13 @@ export function HomePage() {
             ← Back to Home
           </button>
         </div>
-        <Minesweeper />
+        {loadingFollowers ? (
+          <div className="text-center py-8">
+            <div className="text-gray-400">Loading your followers...</div>
+          </div>
+        ) : (
+          <Minesweeper followers={followers} />
+        )}
       </div>
     )
   }
@@ -97,14 +145,14 @@ export function HomePage() {
             <h4 className="font-semibold mb-2">📳 Haptic Feedback</h4>
             <p className="text-sm text-gray-300">Trigger haptic feedback for better UX</p>
           </div>
-          <div className="bg-white/5 rounded-lg p-4">
-            <h4 className="font-semibold mb-2">👥 Follower Analytics</h4>
-            <p className="text-sm text-gray-300">View top 5 followers of any Farcaster user</p>
-          </div>
-          <div className="bg-white/5 rounded-lg p-4">
-            <h4 className="font-semibold mb-2">🎮 Minesweeper Game</h4>
-            <p className="text-sm text-gray-300">Classic 10x10 minesweeper with 10 bombs</p>
-          </div>
+                     <div className="bg-white/5 rounded-lg p-4">
+             <h4 className="font-semibold mb-2">👥 Follower Analytics</h4>
+             <p className="text-sm text-gray-300">View top 8 followers of any Farcaster user</p>
+           </div>
+                     <div className="bg-white/5 rounded-lg p-4">
+             <h4 className="font-semibold mb-2">🎮 Minesweeper Game</h4>
+             <p className="text-sm text-gray-300">Classic 8x8 minesweeper with your top 8 followers as bombs</p>
+           </div>
         </div>
       </div>
 
