@@ -25,6 +25,7 @@ interface GameState {
   gameOver: boolean
   gameWon: boolean
   bombsRemaining: number
+  killedBy?: Follower
 }
 
 interface MinesweeperProps {
@@ -41,6 +42,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     gameWon: false,
     bombsRemaining: BOMB_COUNT
   })
+
+  const [showGameOverModal, setShowGameOverModal] = useState(false)
+  const [showWinModal, setShowWinModal] = useState(false)
 
   const [firstClick, setFirstClick] = useState(true)
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
@@ -164,8 +168,10 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       setGameState({
         ...gameState,
         grid: newGrid,
-        gameOver: true
+        gameOver: true,
+        killedBy: newGrid[row][col].follower
       })
+      setShowGameOverModal(true)
     } else {
       newGrid = revealCell(newGrid, row, col)
       
@@ -179,6 +185,10 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         grid: newGrid,
         gameWon
       })
+      
+      if (gameWon) {
+        setShowWinModal(true)
+      }
     }
   }
 
@@ -249,6 +259,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       bombsRemaining: BOMB_COUNT
     })
     setFirstClick(true)
+    setShowGameOverModal(false)
+    setShowWinModal(false)
   }
 
   // Initialize grid on component mount
@@ -313,6 +325,19 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     return cell.neighborBombs === 0 ? 'bg-gray-200' : colors[cell.neighborBombs]
   }
 
+  // Get all followers that were bombs
+  const getBombFollowers = () => {
+    const bombFollowers: Follower[] = []
+    gameState.grid.forEach(row => {
+      row.forEach(cell => {
+        if (cell.isBomb && cell.follower) {
+          bombFollowers.push(cell.follower)
+        }
+      })
+    })
+    return bombFollowers
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto p-4">
       <div className="text-center mb-6">
@@ -346,7 +371,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-             <div className="grid grid-cols-8 gap-2 bg-gray-800 p-6 rounded-lg">
+             <div className="grid grid-cols-8 gap-3 bg-gray-800 p-6 rounded-lg">
         {gameState.grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => (
                          <button
@@ -356,13 +381,13 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
                onTouchEnd={handleTouchEnd}
                onTouchMove={handleTouchMove}
-                               className={`
-                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded
-                  ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
-                  ${getCellColor(cell)}
-                  transition-colors
-                  touch-manipulation
-                `}
+                                                               className={`
+                   w-12 h-12 flex items-center justify-center text-sm font-bold rounded
+                   ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
+                   ${getCellColor(cell)}
+                   transition-colors
+                   touch-manipulation
+                 `}
                disabled={gameState.gameOver || gameState.gameWon}
              >
                {getCellContent(cell)}
@@ -371,9 +396,93 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-             <div className="text-center mt-6 text-sm text-gray-300">
-         <p>Tap to reveal • Long press or right-click to flag</p>
-       </div>
+                          <div className="text-center mt-6 text-sm text-gray-300">
+          <p>Tap to reveal • Long press or right-click to flag</p>
+        </div>
+      </div>
+
+      {/* Game Over Modal */}
+      {showGameOverModal && gameState.killedBy && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+            <div className="text-center">
+              <div className="text-red-500 text-6xl mb-4">💥</div>
+              <h3 className="text-xl font-bold text-white mb-2">Game Over!</h3>
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                {gameState.killedBy.pfpUrl ? (
+                  <img
+                    src={gameState.killedBy.pfpUrl}
+                    alt={gameState.killedBy.displayName}
+                    className="w-12 h-12 rounded-full"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center">
+                    <span className="text-gray-400 text-lg">
+                      {gameState.killedBy.displayName?.charAt(0) || '?'}
+                    </span>
+                  </div>
+                )}
+                <div className="text-left">
+                  <p className="text-white font-semibold">
+                    Killed by {gameState.killedBy.displayName}
+                  </p>
+                  <p className="text-gray-400 text-sm">@{gameState.killedBy.username}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowGameOverModal(false)}
+                className="bg-red-600 text-white rounded-md px-6 py-2 font-medium hover:bg-red-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Win Modal */}
+      {showWinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md mx-4 max-h-96 overflow-y-auto">
+            <div className="text-center">
+              <div className="text-green-500 text-6xl mb-4">🎉</div>
+              <h3 className="text-xl font-bold text-white mb-4">You Survived!</h3>
+              <p className="text-gray-300 mb-4">You avoided all your followers:</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {getBombFollowers().map((follower, index) => (
+                  <div key={follower.fid} className="flex items-center space-x-3 bg-gray-700 rounded-lg p-2">
+                    {follower.pfpUrl ? (
+                      <img
+                        src={follower.pfpUrl}
+                        alt={follower.displayName}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">
+                          {follower.displayName?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="text-left flex-1">
+                      <p className="text-white text-sm font-semibold">
+                        {follower.displayName}
+                      </p>
+                      <p className="text-gray-400 text-xs">@{follower.username}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowWinModal(false)}
+                className="bg-green-600 text-white rounded-md px-6 py-2 font-medium hover:bg-green-700 transition-colors mt-4"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
