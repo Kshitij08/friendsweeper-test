@@ -340,38 +340,52 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4">
-      <div className="text-center mb-6">
+      <div className="text-center mb-8">
         {followers.length > 0 && (
-          <p className="text-gray-300 mb-4">
-            Your top {followers.length} followers are hidden as bombs! 💣
-          </p>
+          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-xl p-4 mb-6 border border-purple-500/30">
+            <p className="text-gray-200 font-medium">
+              Your top {followers.length} followers are hidden as bombs! 💣
+            </p>
+          </div>
         )}
-        <div className="flex justify-between items-center mb-4">
-          <div className="text-lg">
-            Bombs: {gameState.bombsRemaining}
+        
+        <div className="flex justify-between items-center mb-6 bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-lg font-semibold text-gray-200">
+              Bombs: {gameState.bombsRemaining}
+            </span>
           </div>
           <button
             onClick={resetGame}
-            className="bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-2 text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
           >
             New Game
           </button>
         </div>
         
         {gameState.gameOver && (
-          <div className="text-red-500 text-xl font-bold mb-4">
-            Game Over! 💥
+          <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 mb-6 animate-pulse">
+            <div className="text-red-400 text-xl font-bold flex items-center justify-center space-x-2">
+              <span>💥</span>
+              <span>Game Over!</span>
+              <span>💥</span>
+            </div>
           </div>
         )}
         
         {gameState.gameWon && (
-          <div className="text-green-500 text-xl font-bold mb-4">
-            You Won! 🎉
+          <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4 mb-6 animate-pulse">
+            <div className="text-green-400 text-xl font-bold flex items-center justify-center space-x-2">
+              <span>🎉</span>
+              <span>You Won!</span>
+              <span>🎉</span>
+            </div>
           </div>
         )}
       </div>
 
-             <div className="grid grid-cols-8 gap-2 gap-y-3 bg-gray-800 p-4 rounded-lg">
+             <div className="grid grid-cols-8 gap-4 gap-y-3 bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 shadow-2xl">
         {gameState.grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => (
             <button
@@ -382,11 +396,12 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
               onTouchEnd={handleTouchEnd}
               onTouchMove={handleTouchMove}
                                             className={`
-                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded
-                  ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
+                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded-lg
+                  ${cell.isRevealed ? 'bg-gray-200 shadow-inner' : 'bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 shadow-lg hover:shadow-xl'}
                   ${getCellColor(cell)}
-                  transition-colors
+                  transition-all duration-200
                   touch-manipulation
+                  transform hover:scale-105
                 `}
               disabled={gameState.gameOver || gameState.gameWon}
             >
@@ -396,14 +411,18 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-      <div className="text-center mt-6 text-sm text-gray-300">
-        <p>Tap to reveal • Long press or right-click to flag</p>
-      </div>
+             <div className="text-center mt-8">
+         <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
+           <p className="text-gray-300 text-sm font-medium">
+             💡 Tap to reveal • Long press or right-click to flag
+           </p>
+         </div>
+       </div>
 
-      {/* Game Over Modal */}
-      {showGameOverModal && gameState.killedBy && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+             {/* Game Over Modal */}
+       {showGameOverModal && gameState.killedBy && (
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-md mx-4 border border-gray-700 shadow-2xl">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">💥</div>
               <h3 className="text-xl font-bold text-white mb-2">Game Over!</h3>
@@ -428,28 +447,28 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   <p className="text-gray-400 text-sm">@{gameState.killedBy.username}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowGameOverModal(false)}
-                className="bg-red-600 text-white rounded-md px-6 py-2 font-medium hover:bg-red-700 transition-colors"
-              >
-                Close
-              </button>
+                             <button
+                 onClick={() => setShowGameOverModal(false)}
+                 className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg px-8 py-3 font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
+               >
+                 Close
+               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Win Modal */}
-      {showWinModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md mx-4 max-h-96 overflow-y-auto">
+             {/* Win Modal */}
+       {showWinModal && (
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-md mx-4 max-h-96 overflow-y-auto border border-gray-700 shadow-2xl">
             <div className="text-center">
               <div className="text-green-500 text-6xl mb-4">🎉</div>
               <h3 className="text-xl font-bold text-white mb-4">You Survived!</h3>
               <p className="text-gray-300 mb-4">You avoided all your followers:</p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {getBombFollowers().map((follower, index) => (
-                  <div key={follower.fid} className="flex items-center space-x-3 bg-gray-700 rounded-lg p-2">
+                                 {getBombFollowers().map((follower, index) => (
+                   <div key={follower.fid} className="flex items-center space-x-3 bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl p-3 border border-gray-600/50 hover:from-gray-600 hover:to-gray-700 transition-all duration-200">
                     {follower.pfpUrl ? (
                       <img
                         src={follower.pfpUrl}
@@ -472,12 +491,12 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => setShowWinModal(false)}
-                className="bg-green-600 text-white rounded-md px-6 py-2 font-medium hover:bg-green-700 transition-colors mt-4"
-              >
-                Close
-              </button>
+                             <button
+                 onClick={() => setShowWinModal(false)}
+                 className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg px-8 py-3 font-medium hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg mt-4"
+               >
+                 Close
+               </button>
             </div>
           </div>
         </div>
