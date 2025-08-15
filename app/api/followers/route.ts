@@ -25,13 +25,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // For now, return a placeholder response to fix the build
-    // TODO: Implement proper Neynar API integration once the SDK issues are resolved
+    // Fetch followers using Neynar API
+    const followersResponse = await neynarClient.fetchUserFollowers({
+      fid: parseInt(fid),
+      limit: 5, // Get top 5 followers
+      viewerFid: parseInt(fid) // Use the same FID as viewer for context
+    });
+
+    if (!followersResponse || !followersResponse.users) {
+      return NextResponse.json(
+        { error: 'Failed to fetch followers from Neynar API' },
+        { status: 500 }
+      );
+    }
+
+    // Transform the response to match our expected format
+    const followers = followersResponse.users.map((user: any) => ({
+      fid: user.fid,
+      username: user.username,
+      displayName: user.display_name || user.username,
+      pfpUrl: user.pfp_url || '',
+      followerCount: user.follower_count,
+      followingCount: user.following_count,
+      verifiedAddresses: user.verified_addresses?.eth_addresses || []
+    }));
+
     return NextResponse.json({
       success: true,
-      followers: [],
-      totalFollowers: 0,
-      message: 'Followers API temporarily disabled - Neynar SDK integration in progress'
+      followers: followers,
+      totalFollowers: followersResponse.users.length,
+      message: `Found ${followers.length} followers`
     });
 
   } catch (error) {
