@@ -22,6 +22,8 @@ yarn
 cp .env.example .env.local
 ```
 
+**Note**: This project now includes Neynar integration for fetching followers. See [NEYNAR_SETUP.md](./NEYNAR_SETUP.md) for setup instructions.
+
 ### Run the template
 
 ```bash

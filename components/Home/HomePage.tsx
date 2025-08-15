@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { Settings } from './Settings'
+import { FollowerList } from './FollowerList'
 
 export function HomePage() {
   const [showSettings, setShowSettings] = useState(false)
+  const [showFollowers, setShowFollowers] = useState(false)
 
   if (showSettings) {
     return (
@@ -19,6 +21,23 @@ export function HomePage() {
           </button>
         </div>
         <Settings />
+      </div>
+    )
+  }
+
+  if (showFollowers) {
+    return (
+      <div className="w-full max-w-4xl">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Followers</h2>
+          <button
+            onClick={() => setShowFollowers(false)}
+            className="bg-white text-black rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors"
+          >
+            ← Back to Home
+          </button>
+        </div>
+        <FollowerList />
       </div>
     )
   }
@@ -59,15 +78,27 @@ export function HomePage() {
             <h4 className="font-semibold mb-2">📳 Haptic Feedback</h4>
             <p className="text-sm text-gray-300">Trigger haptic feedback for better UX</p>
           </div>
+          <div className="bg-white/5 rounded-lg p-4">
+            <h4 className="font-semibold mb-2">👥 Follower Analytics</h4>
+            <p className="text-sm text-gray-300">View top 5 followers of any Farcaster user</p>
+          </div>
         </div>
       </div>
 
-      <button
-        onClick={() => setShowSettings(true)}
-        className="bg-white text-black rounded-md px-8 py-3 text-lg font-medium hover:bg-gray-100 transition-colors"
-      >
-        Explore Settings
-      </button>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <button
+          onClick={() => setShowFollowers(true)}
+          className="bg-blue-600 text-white rounded-md px-8 py-3 text-lg font-medium hover:bg-blue-700 transition-colors"
+        >
+          View Followers
+        </button>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="bg-white text-black rounded-md px-8 py-3 text-lg font-medium hover:bg-gray-100 transition-colors"
+        >
+          Explore Settings
+        </button>
+      </div>
     </div>
   )
 }
