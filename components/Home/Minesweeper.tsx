@@ -292,7 +292,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
           <img
             src={cell.follower.pfpUrl}
             alt={cell.follower.displayName}
-            className="w-8 h-8 rounded-full object-cover"
+            className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full object-cover"
           />
         )
       }
@@ -385,30 +385,36 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-             <div className="grid grid-cols-7 gap-4 gap-y-3 bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 shadow-2xl">
-        {gameState.grid.map((row, rowIndex) =>
-          row.map((cell, colIndex) => (
-            <button
-              key={`${rowIndex}-${colIndex}`}
-              onClick={() => handleCellClick(rowIndex, colIndex)}
-              onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
-              onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
-              onTouchEnd={handleTouchEnd}
-              onTouchMove={handleTouchMove}
-                                            className={`
-                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded-lg
-                  ${cell.isRevealed ? 'bg-gray-200 shadow-inner' : 'bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 shadow-lg hover:shadow-xl'}
-                  ${getCellColor(cell)}
-                  transition-all duration-200
-                  touch-manipulation
-                  transform hover:scale-105
-                `}
-              disabled={gameState.gameOver || gameState.gameWon}
-            >
-              {getCellContent(cell)}
-            </button>
-          ))
-        )}
+                   <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 sm:p-6 rounded-2xl border border-gray-700 shadow-2xl">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {gameState.grid.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex gap-3 sm:gap-4 justify-center">
+              {row.map((cell, colIndex) => (
+                <button
+                  key={`${rowIndex}-${colIndex}`}
+                  onClick={() => handleCellClick(rowIndex, colIndex)}
+                  onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
+                  onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
+                  className={`
+                    w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14
+                    flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
+                    ${cell.isRevealed ? 'bg-gray-200 shadow-inner' : 'bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 shadow-lg hover:shadow-xl'}
+                    ${getCellColor(cell)}
+                    transition-all duration-200
+                    touch-manipulation
+                    transform hover:scale-105
+                    flex-shrink-0
+                  `}
+                  disabled={gameState.gameOver || gameState.gameWon}
+                >
+                  {getCellContent(cell)}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
              <div className="text-center mt-8">
