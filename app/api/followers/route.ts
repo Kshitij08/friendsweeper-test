@@ -1,9 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { NeynarAPIClient, Configuration } from '@neynar/nodejs-sdk';
-
-const neynarClient = new NeynarAPIClient(new Configuration({
-  apiKey: process.env.NEYNAR_API_KEY || ''
-}));
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,20 +25,37 @@ export async function GET(request: NextRequest) {
 
     console.log('Attempting to fetch followers for FID:', fid);
 
-    // Fetch followers using the correct Neynar API method
-    const followersResponse = await neynarClient.fetchUserFollowers({
-      fid: parseInt(fid),
-      limit: 5, // Get top 5 followers
-      viewerFid: parseInt(fid), // Use the same FID as viewer for context
-      sortType: 'desc_chron' // Sort by chronological order
+    // Use direct API call instead of SDK method
+    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=5&viewer_fid=${fid}&sort_type=desc_chron`;
+    
+    console.log('Calling Neynar API URL:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        'x-api-key': process.env.NEYNAR_API_KEY,
+        'accept': 'application/json'
+      }
     });
 
+    console.log('Neynar API response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Neynar API error response:', errorText);
+      return NextResponse.json(
+        { error: `Neynar API error: ${response.status} - ${errorText}` },
+        { status: response.status }
+      );
+    }
+
+    const followersResponse = await response.json();
     console.log('Neynar API response received:', !!followersResponse);
+    console.log('Response structure:', Object.keys(followersResponse));
 
     if (!followersResponse || !followersResponse.users) {
-      console.error('Invalid response from Neynar API:', followersResponse);
+      console.error('Invalid response structure from Neynar API:', followersResponse);
       return NextResponse.json(
-        { error: 'Failed to fetch followers from Neynar API' },
+        { error: 'Invalid response structure from Neynar API' },
         { status: 500 }
       );
     }
