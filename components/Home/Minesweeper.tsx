@@ -371,7 +371,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-8 gap-3 gap-y-4 bg-gray-800 p-6 rounded-lg">
+             <div className="grid grid-cols-8 gap-2 gap-y-3 bg-gray-800 p-4 rounded-lg">
         {gameState.grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => (
             <button
@@ -381,13 +381,13 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
               onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
               onTouchEnd={handleTouchEnd}
               onTouchMove={handleTouchMove}
-                             className={`
-                 w-12 h-14 flex items-center justify-center text-sm font-bold rounded
-                 ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
-                 ${getCellColor(cell)}
-                 transition-colors
-                 touch-manipulation
-               `}
+                                            className={`
+                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded
+                  ${cell.isRevealed ? 'bg-gray-200' : 'bg-gray-600 hover:bg-gray-500'}
+                  ${getCellColor(cell)}
+                  transition-colors
+                  touch-manipulation
+                `}
               disabled={gameState.gameOver || gameState.gameWon}
             >
               {getCellContent(cell)}
