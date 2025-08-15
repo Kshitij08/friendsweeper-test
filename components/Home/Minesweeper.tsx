@@ -96,7 +96,7 @@ export function Minesweeper() {
 
   // Reveal cell and its neighbors
   const revealCell = (grid: Cell[][], row: number, col: number): Cell[][] => {
-    const newGrid = [...grid]
+    let newGrid = [...grid]
     
     if (newGrid[row][col].isRevealed || newGrid[row][col].isFlagged) {
       return newGrid
