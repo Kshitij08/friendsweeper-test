@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     console.log('Attempting to fetch followers for FID:', fid);
 
     // Use direct API call instead of SDK method
-    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=8&viewer_fid=${fid}&sort_type=desc_chron`;
+    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=7&viewer_fid=${fid}&sort_type=desc_chron`;
     
     console.log('Calling Neynar API URL:', apiUrl);
     

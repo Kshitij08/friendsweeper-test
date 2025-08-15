@@ -33,8 +33,8 @@ interface MinesweeperProps {
 }
 
 export function Minesweeper({ followers = [] }: MinesweeperProps) {
-  const GRID_SIZE = 8
-  const BOMB_COUNT = 8
+  const GRID_SIZE = 7
+  const BOMB_COUNT = 7
 
   const [gameState, setGameState] = useState<GameState>({
     grid: [],
@@ -339,7 +339,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto p-6">
+    <div className="w-full max-w-2xl mx-auto p-4">
       <div className="text-center mb-8">
         {followers.length > 0 && (
           <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-xl p-4 mb-6 border border-purple-500/30">
@@ -385,7 +385,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-             <div className="grid grid-cols-8 gap-4 gap-y-3 bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border border-gray-700 shadow-2xl">
+             <div className="grid grid-cols-7 gap-4 gap-y-3 bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 shadow-2xl">
         {gameState.grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => (
             <button
@@ -396,7 +396,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
               onTouchEnd={handleTouchEnd}
               onTouchMove={handleTouchMove}
                                             className={`
-                  w-12 h-12 flex items-center justify-center text-sm font-bold rounded-lg
+                  w-10 h-10 flex items-center justify-center text-sm font-bold rounded-lg
                   ${cell.isRevealed ? 'bg-gray-200 shadow-inner' : 'bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 shadow-lg hover:shadow-xl'}
                   ${getCellColor(cell)}
                   transition-all duration-200

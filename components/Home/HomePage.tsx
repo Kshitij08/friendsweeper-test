@@ -140,11 +140,11 @@ export function HomePage() {
           </div>
                      <div className="bg-white/5 rounded-lg p-4">
              <h4 className="font-semibold mb-2">👥 Follower Analytics</h4>
-             <p className="text-sm text-gray-300">View top 8 followers of any Farcaster user</p>
+             <p className="text-sm text-gray-300">View top 7 followers of any Farcaster user</p>
            </div>
                      <div className="bg-white/5 rounded-lg p-4">
              <h4 className="font-semibold mb-2">🎮 Minesweeper Game</h4>
-             <p className="text-sm text-gray-300">Classic 8x8 minesweeper with your top 8 followers as bombs</p>
+             <p className="text-sm text-gray-300">Classic 7x7 minesweeper with your top 7 followers as bombs</p>
            </div>
         </div>
       </div>
