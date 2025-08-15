@@ -17,6 +17,8 @@ interface FollowersResponse {
   success: boolean
   followers: Follower[]
   totalFollowers: number
+  error?: string
+  message?: string
 }
 
 export function FollowerList() {
@@ -40,7 +42,7 @@ export function FollowerList() {
       const data: FollowersResponse = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch followers')
+        throw new Error(data.error || data.message || 'Failed to fetch followers')
       }
 
       setFollowers(data.followers)
