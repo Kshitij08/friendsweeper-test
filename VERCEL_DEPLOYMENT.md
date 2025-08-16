@@ -1,161 +1,181 @@
-# Vercel Deployment Guide for Friendsweeper
+# Vercel Deployment Guide for NFT Marketplace
 
-This guide will help you deploy your Friendsweeper app to Vercel.
+## 🚀 **Pre-Deployment Checklist**
 
-## Prerequisites
+### **1. Environment Variables Setup**
 
-1. **Vercel Account**: Sign up at [vercel.com](https://vercel.com)
-2. **GitHub/GitLab/Bitbucket**: Your code should be in a Git repository
-3. **Upstash Redis**: For data storage (already configured in your app)
-4. **Neynar API Key**: For Farcaster integration
+Before deploying to Vercel, ensure you have these environment variables ready:
 
-## Step 1: Prepare Your Repository
+```bash
+# NFT Contract Configuration
+NFT_CONTRACT_ADDRESS=0x... # Your deployed NFT contract address
+CONTRACT_OWNER_PRIVATE_KEY=0x... # Your private key (keep this secret!)
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+BASE_MAINNET_RPC_URL=https://mainnet.base.org
 
-Your project is already well-configured for Vercel deployment with:
-- ✅ Next.js 14.2.6
-- ✅ TypeScript configuration
-- ✅ Proper package.json with build scripts
-- ✅ Vercel configuration file (`vercel.json`)
+# Network Configuration
+NEXT_PUBLIC_CHAIN_ID=84532
 
-## Step 2: Deploy to Vercel
+# Cloudflare Configuration (if using Cloudflare for image storage)
+CLOUDFLARE_WORKER_URL=https://your-worker.your-subdomain.workers.dev
 
-### Option A: Deploy via Vercel Dashboard (Recommended)
+# Existing Configuration
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+NEYNAR_API_KEY=your_neynar_api_key
+```
 
-1. **Push your code to GitHub/GitLab/Bitbucket**
-   ```bash
-   git add .
-   git commit -m "Prepare for Vercel deployment"
-   git push origin main
-   ```
+### **2. Vercel Dashboard Configuration**
 
-2. **Connect to Vercel**:
-   - Go to [vercel.com](https://vercel.com)
-   - Click "New Project"
-   - Import your Git repository
-   - Vercel will automatically detect it's a Next.js project
+#### **Step 1: Add Environment Variables**
+1. Go to your Vercel project dashboard
+2. Navigate to **Settings → Environment Variables**
+3. Add each environment variable from the list above
+4. Set **Environment** to **Production** for all variables
+5. Click **Save**
 
-3. **Configure Environment Variables**:
-   In the Vercel dashboard, add these environment variables:
-   
-   ```
-   NEXT_PUBLIC_URL=https://your-app-name.vercel.app
-   UPSTASH_REDIS_REST_URL=your_upstash_redis_url
-   UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
-   NEYNAR_API_KEY=your_neynar_api_key
-   ```
+#### **Step 2: Configure Build Settings**
+1. Go to **Settings → General**
+2. Ensure **Framework Preset** is set to **Next.js**
+3. **Build Command** should be: `npm run build`
+4. **Output Directory** should be: `.next`
+5. **Install Command** should be: `npm install`
 
-4. **Deploy**:
-   - Click "Deploy"
-   - Vercel will build and deploy your app automatically
+#### **Step 3: Configure Domains (Optional)**
+1. Go to **Settings → Domains**
+2. Add your custom domain if needed
+3. Configure DNS settings as required
 
-### Option B: Deploy via Vercel CLI
+### **3. Deployment Steps**
 
-1. **Install Vercel CLI**:
-   ```bash
-   npm i -g vercel
-   ```
+#### **Option A: Deploy via Vercel CLI**
+```bash
+# Install Vercel CLI
+npm i -g vercel
 
-2. **Login to Vercel**:
-   ```bash
-   vercel login
-   ```
+# Login to Vercel
+vercel login
 
-3. **Deploy**:
-   ```bash
-   vercel
-   ```
+# Deploy
+vercel --prod
+```
 
-4. **Follow the prompts**:
-   - Link to existing project or create new
-   - Set environment variables when prompted
+#### **Option B: Deploy via GitHub Integration**
+1. Push your code to GitHub
+2. Connect your GitHub repository to Vercel
+3. Vercel will automatically deploy on every push
 
-## Step 3: Configure Environment Variables
+#### **Option C: Deploy via Vercel Dashboard**
+1. Go to your Vercel dashboard
+2. Click **Deploy**
+3. Import your repository
+4. Configure settings and deploy
 
-### Required Environment Variables:
+## 🔧 **Post-Deployment Configuration**
 
-1. **NEXT_PUBLIC_URL**: Your Vercel app URL
-   ```
-   NEXT_PUBLIC_URL=https://your-app-name.vercel.app
-   ```
+### **1. Verify Environment Variables**
+After deployment, verify that all environment variables are loaded:
 
-2. **UPSTASH_REDIS_REST_URL**: Your Upstash Redis URL
-   ```
-   UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
-   ```
+1. Go to your deployed app
+2. Check the browser console for any environment-related errors
+3. Test the NFT minting functionality
 
-3. **UPSTASH_REDIS_REST_TOKEN**: Your Upstash Redis token
-   ```
-   UPSTASH_REDIS_REST_TOKEN=your_redis_token
-   ```
+### **2. Test NFT Minting**
+1. **Play a game** of Friendsweeper
+2. **Complete the game** (win or lose)
+3. **Click "Mint as NFT"**
+4. **Connect wallet** (ensure it's on Base Sepolia)
+5. **Confirm transaction**
 
-4. **NEYNAR_API_KEY**: Your Neynar API key for webhook verification
-   ```
-   NEYNAR_API_KEY=your_neynar_api_key
-   ```
+### **3. Test Marketplace**
+1. **After minting**, click "Open Marketplace"
+2. **List NFT** for sale
+3. **Test buying/selling** functionality
+4. **Verify royalty payments**
 
-### How to Set Environment Variables in Vercel:
+## 🌐 **Production Considerations**
 
-1. Go to your project dashboard in Vercel
-2. Navigate to "Settings" → "Environment Variables"
-3. Add each variable with the appropriate environment (Production, Preview, Development)
+### **1. Network Configuration**
+- **Testnet (Base Sepolia):** Use for testing and development
+- **Mainnet (Base):** Use for production
+- Update `NEXT_PUBLIC_CHAIN_ID` accordingly:
+  - `84532` for Base Sepolia
+  - `8453` for Base Mainnet
 
-## Step 4: Configure Farcaster Mini App
+### **2. Security Best Practices**
+- **Never expose private keys** in client-side code
+- **Use environment variables** for all sensitive data
+- **Enable HTTPS** (automatic with Vercel)
+- **Set up proper CORS** if needed
 
-After deployment, you'll need to:
+### **3. Performance Optimization**
+- **Enable caching** for static assets
+- **Optimize images** using Next.js Image component
+- **Use CDN** for better global performance
+- **Monitor performance** with Vercel Analytics
 
-1. **Update your Farcaster Mini App configuration** with the new Vercel URL
-2. **Configure webhook endpoints** to point to your Vercel deployment
-3. **Test the webhook** at `https://your-app.vercel.app/api/webhook`
+### **4. Monitoring and Analytics**
+- **Set up Vercel Analytics** for performance monitoring
+- **Configure error tracking** (e.g., Sentry)
+- **Monitor API usage** and costs
+- **Set up alerts** for critical issues
 
-## Step 5: Verify Deployment
+## 🔍 **Troubleshooting**
 
-1. **Check the build logs** in Vercel dashboard
-2. **Test your app** at the deployed URL
-3. **Verify API endpoints** are working:
-   - `/api/webhook` - Webhook endpoint
-   - `/api/followers` - Followers API
-   - `/api/og` - Open Graph images
-   - `/api/send-notification` - Notification API
+### **Common Issues:**
 
-## Troubleshooting
+#### **1. Environment Variables Not Loading**
+- Check Vercel dashboard for correct variable names
+- Ensure variables are set for Production environment
+- Redeploy after adding new variables
 
-### Common Issues:
+#### **2. Contract Interaction Fails**
+- Verify contract address is correct
+- Check network configuration
+- Ensure wallet is on correct network
 
-1. **Build Failures**:
-   - Check that all dependencies are in `package.json`
-   - Ensure TypeScript compilation passes locally
+#### **3. Image Upload Issues**
+- Verify Cloudflare Worker URL is correct
+- Check CORS settings
+- Ensure proper authentication
 
-2. **Environment Variables**:
-   - Verify all required env vars are set in Vercel
-   - Check that `NEXT_PUBLIC_URL` matches your deployment URL
+#### **4. Build Failures**
+- Check build logs in Vercel dashboard
+- Verify all dependencies are installed
+- Check for TypeScript errors
 
-3. **API Errors**:
-   - Ensure Upstash Redis credentials are correct
-   - Verify Neynar API key is valid
+### **Debug Commands:**
+```bash
+# Check build locally
+npm run build
 
-4. **Webhook Issues**:
-   - Check that the webhook URL is accessible
-   - Verify webhook signature verification is working
+# Test production build
+npm run start
 
-### Performance Optimization:
+# Check environment variables
+echo $NFT_CONTRACT_ADDRESS
+```
 
-- Your app is already optimized with:
-  - Next.js 14 with App Router
-  - Proper caching headers
-  - Optimized build configuration
+## 📊 **Deployment Checklist**
 
-## Next Steps
+- [ ] Environment variables configured in Vercel
+- [ ] Contract deployed and verified
+- [ ] Cloudflare Worker configured (if using)
+- [ ] Custom domain configured (if needed)
+- [ ] SSL certificate active
+- [ ] Performance monitoring set up
+- [ ] Error tracking configured
+- [ ] Analytics enabled
+- [ ] Backup strategy in place
 
-After successful deployment:
+## 🎯 **Next Steps After Deployment**
 
-1. **Set up custom domain** (optional)
-2. **Configure monitoring** and analytics
-3. **Set up automatic deployments** from your main branch
-4. **Configure preview deployments** for pull requests
+1. **Test all functionality** thoroughly
+2. **Monitor performance** and errors
+3. **Set up alerts** for critical issues
+4. **Plan mainnet deployment** when ready
+5. **Implement additional features** as needed
 
-## Support
+---
 
-If you encounter issues:
-- Check Vercel's [deployment documentation](https://vercel.com/docs)
-- Review your build logs in the Vercel dashboard
-- Ensure all environment variables are properly configured
+**Happy Deploying! 🚀**
