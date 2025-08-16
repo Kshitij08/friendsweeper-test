@@ -99,11 +99,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<MintNFTRe
 
       // Estimate gas for minting (ERC-1155 requires amount parameter)
       console.log('Estimating gas for minting...')
-      const gasEstimate = await contract.mint.estimateGas(userAddress, metadataUrl, 1)
+      const gasEstimate = await contract.mint.estimateGas(userAddress, metadataUrl, BigInt(1))
       console.log('Estimated gas for minting:', gasEstimate.toString())
 
       // Mint the NFT (amount = 1 for unique NFTs)
-      const tx = await contract.mint(userAddress, metadataUrl, 1, {
+      const tx = await contract.mint(userAddress, metadataUrl, BigInt(1), {
         gasLimit: (gasEstimate * BigInt(120)) / BigInt(100) // Add 20% buffer
       })
 
