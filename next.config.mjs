@@ -8,7 +8,7 @@ const nextConfig = {
     NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID || '84532', // Base Sepolia
   },
   
-  // Headers for security
+  // Headers for Farcaster mini-app compatibility
   async headers() {
     return [
       {
@@ -16,11 +16,15 @@ const nextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'ALLOWALL', // Allow iframe embedding for Farcaster
           },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors *;", // Allow all frame ancestors for Farcaster
           },
         ],
       },

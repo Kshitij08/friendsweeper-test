@@ -117,8 +117,8 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       </button>
       
       {!address && (
-        <p className="text-sm text-gray-400 text-center">
-          Connect your wallet to mint NFT
+        <p className="text-sm text-blue-400 text-center">
+          🔗 Connecting wallet automatically...
         </p>
       )}
       

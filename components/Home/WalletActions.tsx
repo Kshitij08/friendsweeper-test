@@ -101,18 +101,23 @@ export function WalletActions() {
     )
   }
 
-  if (isEthProviderAvailable) {
+  if (isEthProviderAvailable && !isConnected) {
     return (
       <div className="space-y-4 border border-[#333] rounded-md p-4">
         <h2 className="text-xl font-bold text-left">sdk.wallet.ethProvider</h2>
         <div className="flex flex-row space-x-4 justify-start items-start">
-          <button
-            type="button"
-            className="bg-white text-black w-full rounded-md p-2 text-sm"
-            onClick={() => connect({ connector: miniAppConnector() })}
-          >
-            Connect Wallet
-          </button>
+          <div className="flex flex-col space-y-2">
+            <p className="text-sm text-left text-green-400">
+              ✅ Wallet auto-connecting...
+            </p>
+            <button
+              type="button"
+              className="bg-white text-black w-full rounded-md p-2 text-sm"
+              onClick={() => connect({ connector: miniAppConnector() })}
+            >
+              Connect Wallet Manually
+            </button>
+          </div>
         </div>
       </div>
     )
