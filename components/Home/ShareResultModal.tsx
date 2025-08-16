@@ -26,6 +26,7 @@ interface GameResult {
   grid: Cell[][]
   killedBy?: Follower
   followers: Follower[]
+  boardImage?: string // Add the captured board image
 }
 
 interface ShareResultModalProps {
@@ -82,21 +83,27 @@ export function ShareResultModal({
       }
       setCastText(text)
 
-             // Generate board image
-       const response = await fetch('/api/generate-board-image', {
-         method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-         },
-         body: JSON.stringify({ gameResult, userFid })
-       })
+      // Use the captured board image if available, otherwise generate one
+      if (gameResult.boardImage) {
+        setImageDataUrl(gameResult.boardImage)
+        setPublicImageUrl(gameResult.boardImage)
+      } else {
+        // Fallback to generating board image
+        const response = await fetch('/api/generate-board-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ gameResult, userFid })
+        })
 
-             if (response.ok) {
-         const result = await response.json()
-         console.log('Image generation result:', result)
-         setImageDataUrl(result.imageDataUrl)
-         setPublicImageUrl(result.publicUrl)
-       }
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Image generation result:', result)
+          setImageDataUrl(result.imageDataUrl)
+          setPublicImageUrl(result.publicUrl)
+        }
+      }
     } catch (error) {
       console.error('Error generating cast data:', error)
     } finally {

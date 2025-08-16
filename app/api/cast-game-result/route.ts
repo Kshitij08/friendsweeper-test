@@ -24,6 +24,7 @@ interface GameResult {
   grid: Cell[][];
   killedBy?: Follower;
   followers: Follower[];
+  boardImage?: string; // Add the captured board image
 }
 
 export async function POST(request: NextRequest) {
@@ -60,21 +61,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate board image
-    const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-board-image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ gameResult, userFid: userFid.toString() })
-    });
-
+    // Use the captured board image if available, otherwise generate one
     let imageDataUrl = null;
     let publicImageUrl = null;
-    if (imageResponse.ok) {
-      const imageResult = await imageResponse.json();
-      imageDataUrl = imageResult.imageDataUrl;
-      publicImageUrl = imageResult.publicUrl;
+    
+    if (gameResult.boardImage) {
+      // Use the captured board image directly
+      imageDataUrl = gameResult.boardImage;
+      publicImageUrl = gameResult.boardImage;
+    } else {
+      // Generate board image as fallback
+      const imageResponse = await fetch(`${request.nextUrl.origin}/api/generate-board-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gameResult, userFid: userFid.toString() })
+      });
+
+      if (imageResponse.ok) {
+        const imageResult = await imageResponse.json();
+        imageDataUrl = imageResult.imageDataUrl;
+        publicImageUrl = imageResult.publicUrl;
+      }
     }
 
     // Create a simple text representation of the board for now

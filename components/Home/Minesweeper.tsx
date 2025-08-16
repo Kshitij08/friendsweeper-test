@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ShareResultModal } from './ShareResultModal'
 import { useFrame } from '@/components/farcaster-provider'
 
@@ -28,6 +28,7 @@ interface GameState {
   gameWon: boolean
   bombsRemaining: number
   killedBy?: Follower
+  boardImage?: string // Add captured board image
 }
 
 interface MinesweeperProps {
@@ -38,6 +39,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const { context } = useFrame()
   const GRID_SIZE = 8
   const BOMB_COUNT = 16
+  const gameBoardRef = useRef<HTMLDivElement>(null)
 
   const [gameState, setGameState] = useState<GameState>({
     grid: [],
@@ -328,6 +330,37 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     })
   }
 
+  // Capture screenshot of the game board
+  const captureGameBoard = async (): Promise<string | null> => {
+    if (!gameBoardRef.current) {
+      console.error('Game board ref not available')
+      return null
+    }
+    
+    try {
+      console.log('Capturing game board screenshot...')
+      // Dynamically import html2canvas to avoid SSR issues
+      const html2canvas = (await import('html2canvas')).default
+      
+      const canvas = await html2canvas(gameBoardRef.current, {
+        backgroundColor: '#1a202c', // Match the background color
+        scale: 2, // Higher resolution
+        useCORS: true, // Allow cross-origin images (for profile pictures)
+        allowTaint: true, // Allow tainted canvas
+        logging: false,
+        width: gameBoardRef.current.offsetWidth,
+        height: gameBoardRef.current.offsetHeight
+      })
+      
+      const dataUrl = canvas.toDataURL('image/png', 0.9)
+      console.log('Screenshot captured successfully:', dataUrl.substring(0, 50) + '...')
+      return dataUrl
+    } catch (error) {
+      console.error('Failed to capture game board:', error)
+      return null
+    }
+  }
+
   // Share game result
   const shareGameResult = async () => {
     setShowShareModal(true)
@@ -337,11 +370,21 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const handleShare = async () => {
     setIsSharing(true)
     try {
+      // Capture the game board screenshot
+      const boardImage = await captureGameBoard()
+      
+      // Store the captured image in game state
+      setGameState(prev => ({
+        ...prev,
+        boardImage: boardImage || undefined
+      }))
+      
       const gameResult = {
         gameWon: gameState.gameWon,
         grid: gameState.grid,
         killedBy: gameState.killedBy,
-        followers: followers
+        followers: followers,
+        boardImage: boardImage // Include the captured image
       }
 
       // Get the actual user FID from context
@@ -384,7 +427,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       grid: initializeGrid(),
       gameOver: false,
       gameWon: false,
-      bombsRemaining: BOMB_COUNT
+      bombsRemaining: BOMB_COUNT,
+      boardImage: undefined
     })
     setFirstClick(true)
     setShowGameOverModal(false)
@@ -397,7 +441,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       grid: initializeGrid(),
       gameOver: false,
       gameWon: false,
-      bombsRemaining: BOMB_COUNT
+      bombsRemaining: BOMB_COUNT,
+      boardImage: undefined
     })
   }, [])
 
@@ -506,7 +551,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
       </div>
 
-                   <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 sm:p-6 rounded-2xl border border-gray-700 shadow-2xl">
+                   <div ref={gameBoardRef} className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 sm:p-6 rounded-2xl border border-gray-700 shadow-2xl">
         <div className="flex flex-col gap-1 sm:gap-2">
           {gameState.grid.map((row, rowIndex) => (
             <div key={rowIndex} className="flex gap-1 sm:gap-2 justify-center">
@@ -692,7 +737,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
           gameWon: gameState.gameWon,
           grid: gameState.grid,
           killedBy: gameState.killedBy,
-          followers: followers
+          followers: followers,
+          boardImage: gameState.boardImage // Pass the captured board image
         }}
         onShare={handleShare}
         isSharing={isSharing}
