@@ -90,8 +90,34 @@ export function ShareResultModal({
       // Use the captured board image if available, otherwise generate one
       if (gameResult.boardImage) {
         console.log('Using pre-captured board image')
+        console.log('Board image type:', gameResult.boardImage.substring(0, 30))
         setImageDataUrl(gameResult.boardImage)
-        setPublicImageUrl(gameResult.boardImage)
+        
+        // Upload the image using the production Cloudflare API
+        try {
+          const uploadResponse = await fetch('/api/upload-board-image-production', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              imageData: gameResult.boardImage,
+              gameResult: gameResult
+            })
+          })
+          
+          if (uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            console.log('Image uploaded successfully:', uploadResult.publicUrl)
+            setPublicImageUrl(uploadResult.publicUrl)
+          } else {
+            console.log('Failed to upload image, using data URL as fallback')
+            setPublicImageUrl(gameResult.boardImage)
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error)
+          setPublicImageUrl(gameResult.boardImage)
+        }
       } else {
         console.log('No captured board image, falling back to generation')
         // Fallback to generating board image
@@ -166,8 +192,9 @@ export function ShareResultModal({
                              onClick={async () => {
                  if (actions && castText) {
                    try {
-                     console.log('Casting with text:', castText)
-                     console.log('Casting with image URL:', publicImageUrl)
+                                           console.log('Casting with text:', castText)
+                      console.log('Casting with image URL:', publicImageUrl)
+                      console.log('Image URL type:', publicImageUrl?.substring(0, 30))
                      
                      // Try casting with the text-based image
                      await actions.composeCast({

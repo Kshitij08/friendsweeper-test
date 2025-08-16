@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "friendsweeper-image-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-16",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "PUBLIC_BUCKET_URL": "https://your-bucket.r2.dev"
+  },
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "friendsweeper-images"
+    }
+  ],
+  // Rate limiting removed - allow unlimited requests
+}
