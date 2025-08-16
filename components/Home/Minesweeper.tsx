@@ -51,6 +51,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [longPressRow, setLongPressRow] = useState<number | null>(null)
   const [longPressCol, setLongPressCol] = useState<number | null>(null)
   const [longPressCompleted, setLongPressCompleted] = useState(false)
+  const [mouseDownTimer, setMouseDownTimer] = useState<NodeJS.Timeout | null>(null)
+  const [mouseDownRow, setMouseDownRow] = useState<number | null>(null)
+  const [mouseDownCol, setMouseDownCol] = useState<number | null>(null)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -243,9 +246,41 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     setLongPressCol(null)
   }
 
+  // Handle mouse down for desktop long press
+  const handleMouseDown = (row: number, col: number) => {
+    setLongPressCompleted(false)
+    const timer = setTimeout(() => {
+      handleLongPress(row, col)
+    }, 500) // 500ms long press threshold
+    
+    setMouseDownTimer(timer)
+    setMouseDownRow(row)
+    setMouseDownCol(col)
+  }
+
+  // Handle mouse up to cancel desktop long press
+  const handleMouseUp = () => {
+    if (mouseDownTimer) {
+      clearTimeout(mouseDownTimer)
+      setMouseDownTimer(null)
+    }
+    setMouseDownRow(null)
+    setMouseDownCol(null)
+  }
+
+  // Handle mouse leave to cancel desktop long press
+  const handleMouseLeave = () => {
+    if (mouseDownTimer) {
+      clearTimeout(mouseDownTimer)
+      setMouseDownTimer(null)
+    }
+    setMouseDownRow(null)
+    setMouseDownCol(null)
+  }
+
   // Check if a long press was detected for a specific cell
   const wasLongPress = (row: number, col: number) => {
-    return longPressCompleted && longPressRow === row && longPressCol === col
+    return longPressCompleted && ((longPressRow === row && longPressCol === col) || (mouseDownRow === row && mouseDownCol === col))
   }
 
   // Flag/unflag a cell
@@ -293,8 +328,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       if (longPressTimer) {
         clearTimeout(longPressTimer)
       }
+      if (mouseDownTimer) {
+        clearTimeout(mouseDownTimer)
+      }
     }
-  }, [longPressTimer])
+  }, [longPressTimer, mouseDownTimer])
 
   const getCellContent = (cell: Cell) => {
     if (!cell.isRevealed) {
@@ -411,6 +449,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
                   onTouchEnd={handleTouchEnd}
                   onTouchMove={handleTouchMove}
+                  onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
                   className={`
                     w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16
                     flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
@@ -420,6 +461,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                     touch-manipulation
                     transform hover:scale-105
                     flex-shrink-0
+                    select-none
                   `}
                   disabled={gameState.gameOver || gameState.gameWon}
                 >
