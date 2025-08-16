@@ -54,6 +54,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [mouseDownTimer, setMouseDownTimer] = useState<NodeJS.Timeout | null>(null)
   const [mouseDownRow, setMouseDownRow] = useState<number | null>(null)
   const [mouseDownCol, setMouseDownCol] = useState<number | null>(null)
+  const [lastTapTime, setLastTapTime] = useState<number>(0)
+  const [lastTapRow, setLastTapRow] = useState<number | null>(null)
+  const [lastTapCol, setLastTapCol] = useState<number | null>(null)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -158,6 +161,25 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       setLongPressCompleted(false)
       return
     }
+
+    // Check for double tap
+    const currentTime = Date.now()
+    const timeDiff = currentTime - lastTapTime
+    const isDoubleTap = timeDiff < 300 && lastTapRow === row && lastTapCol === col
+
+    if (isDoubleTap) {
+      // Double tap detected - flag the cell
+      flagCell(row, col)
+      setLastTapTime(0)
+      setLastTapRow(null)
+      setLastTapCol(null)
+      return
+    }
+
+    // Single tap - update last tap info
+    setLastTapTime(currentTime)
+    setLastTapRow(row)
+    setLastTapCol(col)
 
     let newGrid = [...gameState.grid]
 

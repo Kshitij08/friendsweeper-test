@@ -62,7 +62,7 @@ export function HomePage() {
             onClick={() => setShowSettings(false)}
             className="bg-white text-black rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors"
           >
-            ← Back to Home
+            ← Back
           </button>
         </div>
         <Settings />
@@ -79,7 +79,7 @@ export function HomePage() {
             onClick={() => setShowFollowers(false)}
             className="bg-white text-black rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors"
           >
-            ← Back to Home
+            ← Back
           </button>
         </div>
         <FollowerList />
@@ -95,7 +95,7 @@ export function HomePage() {
             onClick={() => setShowMinesweeper(false)}
             className="bg-white text-black rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors"
           >
-            ← Back to Home
+            ← Back
           </button>
         </div>
         {loadingFollowers ? (
