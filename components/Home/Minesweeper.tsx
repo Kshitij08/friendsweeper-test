@@ -248,6 +248,10 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const handleLongPress = (row: number, col: number) => {
     flagCell(row, col)
     setLongPressCompleted(true)
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      setLongPressCompleted(false)
+    }, 100)
   }
 
   // Handle touch start for long press detection
@@ -265,7 +269,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
   // Handle touch end to cancel long press
   const handleTouchEnd = (row: number, col: number) => {
-    if (longPressTimer) {
+    // Only clear timer if long press hasn't completed yet
+    if (longPressTimer && !longPressCompleted) {
       clearTimeout(longPressTimer)
       setLongPressTimer(null)
     }
@@ -287,13 +292,18 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       return
     }
 
-    // Single tap - update last tap info and reveal cell
+    // Single tap - update last tap info
     setLastTapTime(currentTime)
     setLastTapRow(row)
     setLastTapCol(col)
     
-    // Handle single tap reveal
-    handleCellReveal(row, col)
+    // Delay single tap reveal to allow for double tap detection
+    setTimeout(() => {
+      // Only reveal if this is still the last tap (no double tap occurred)
+      if (lastTapRow === row && lastTapCol === col && lastTapTime === currentTime) {
+        handleCellReveal(row, col)
+      }
+    }, 350) // Slightly longer than double tap threshold (300ms)
     
     // Reset touch flag after a short delay
     setTimeout(() => {
