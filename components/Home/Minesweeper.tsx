@@ -205,6 +205,10 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       return
     }
     
+    // Don't show popup for revealed tiles, but allow unflagging flagged tiles
+    const cell = gameState.grid[row][col]
+    if (cell.isRevealed && !cell.isFlagged) return
+    
     // Calculate position for popup with bounds checking
     const position = calculatePopupPosition(event.clientX, event.clientY)
     setPopupPosition(position)
@@ -247,6 +251,10 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     
     setTouchUsed(true)
     
+    // Don't show popup for revealed tiles, but allow unflagging flagged tiles
+    const cell = gameState.grid[row][col]
+    if (cell.isRevealed && !cell.isFlagged) return
+    
     // Calculate position for popup with bounds checking
     const touch = event.touches[0]
     const position = calculatePopupPosition(touch.clientX, touch.clientY)
@@ -257,10 +265,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     setPopupCol(col)
     setShowActionPopup(true)
     
-    // Reset touch flag after a short delay
-    setTimeout(() => {
-      setTouchUsed(false)
-    }, 100)
+    // Reset touch flag immediately
+    setTouchUsed(false)
   }
 
 
@@ -441,7 +447,10 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
       {/* Action Popup */}
       {showActionPopup && popupRow !== null && popupCol !== null && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
+        <div 
+          className="fixed inset-0 z-50"
+          onClick={() => setShowActionPopup(false)}
+        >
           <div 
             className="absolute bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-4 border border-gray-700 shadow-2xl"
             style={{
@@ -449,6 +458,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
               top: popupPosition.y,
               transform: 'translateX(-50%)'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex gap-2 justify-center">
               <button
