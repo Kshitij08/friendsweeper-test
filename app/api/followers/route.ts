@@ -25,8 +25,11 @@ export async function GET(request: NextRequest) {
 
     console.log('Attempting to fetch followers for FID:', fid);
 
-    // Use direct API call instead of SDK method
-    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=8&viewer_fid=${fid}&sort_type=desc_chron`;
+    // Default FIDs to use as fallback
+    const defaultFids = [4753, 3, 12, 99, 1075899, 1350, 2233, 1188544];
+    
+    // Fetch more followers to have a larger pool for random selection
+    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=20&viewer_fid=${fid}&sort_type=desc_chron`;
     
     console.log('Calling Neynar API URL:', apiUrl);
     
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
     console.log('Number of followers found:', followersResponse.users.length);
 
     // Transform the response to match our expected format
-    const followers = followersResponse.users.map((follower: any) => ({
+    const userFollowers = followersResponse.users.map((follower: any) => ({
       fid: follower.user.fid,
       username: follower.user.username,
       displayName: follower.user.display_name || follower.user.username,
@@ -73,11 +76,82 @@ export async function GET(request: NextRequest) {
       verifiedAddresses: follower.user.verified_addresses?.eth_addresses || []
     }));
 
+    // Randomly select up to 8 followers from the user's followers
+    const shuffledFollowers = [...userFollowers].sort(() => Math.random() - 0.5);
+    const selectedFollowers = shuffledFollowers.slice(0, Math.min(8, userFollowers.length));
+
+    // If we have less than 8 followers, fill with random default FIDs
+    const remainingSlots = 8 - selectedFollowers.length;
+    let finalFollowers = [...selectedFollowers];
+
+    if (remainingSlots > 0) {
+      console.log(`User has ${userFollowers.length} followers, filling ${remainingSlots} slots with default FIDs`);
+      
+      // Shuffle default FIDs and take what we need
+      const shuffledDefaults = [...defaultFids].sort(() => Math.random() - 0.5);
+      const selectedDefaults = shuffledDefaults.slice(0, remainingSlots);
+      
+      // Fetch details for selected default FIDs
+      const defaultFollowersPromises = selectedDefaults.map(async (defaultFid) => {
+        try {
+          const userApiUrl = `https://api.neynar.com/v2/farcaster/user/?fid=${defaultFid}&viewer_fid=${fid}`;
+          const userResponse = await fetch(userApiUrl, {
+            headers: {
+              'x-api-key': process.env.NEYNAR_API_KEY!,
+              'accept': 'application/json'
+            }
+          });
+          
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            return {
+              fid: userData.user.fid,
+              username: userData.user.username,
+              displayName: userData.user.display_name || userData.user.username,
+              pfpUrl: userData.user.pfp_url || '',
+              followerCount: userData.user.follower_count,
+              followingCount: userData.user.following_count,
+              verifiedAddresses: userData.user.verified_addresses?.eth_addresses || []
+            };
+          } else {
+            // Fallback if API call fails
+            return {
+              fid: defaultFid,
+              username: `user${defaultFid}`,
+              displayName: `User ${defaultFid}`,
+              pfpUrl: '',
+              followerCount: 0,
+              followingCount: 0,
+              verifiedAddresses: []
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching default FID ${defaultFid}:`, error);
+          // Fallback if API call fails
+          return {
+            fid: defaultFid,
+            username: `user${defaultFid}`,
+            displayName: `User ${defaultFid}`,
+            pfpUrl: '',
+            followerCount: 0,
+            followingCount: 0,
+            verifiedAddresses: []
+          };
+        }
+      });
+      
+      const defaultFollowers = await Promise.all(defaultFollowersPromises);
+      finalFollowers = [...selectedFollowers, ...defaultFollowers];
+    }
+
+    // Shuffle the final list one more time to mix user followers and defaults
+    finalFollowers = finalFollowers.sort(() => Math.random() - 0.5);
+
     return NextResponse.json({
       success: true,
-      followers: followers,
-      totalFollowers: followersResponse.users.length,
-      message: `Found ${followers.length} followers for user`
+      followers: finalFollowers,
+      totalFollowers: finalFollowers.length,
+      message: `Selected ${selectedFollowers.length} random followers and ${remainingSlots > 0 ? `filled ${remainingSlots} slots with defaults` : 'used all user followers'}`
     });
 
   } catch (error) {
