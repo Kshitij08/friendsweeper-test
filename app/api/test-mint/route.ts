@@ -31,8 +31,9 @@ export async function GET(request: NextRequest) {
 
     // Test 1: Check if we can call the contract
     console.log('Test 1: Testing contract connection...')
+    let owner: string
     try {
-      const owner = await contract.owner()
+      owner = await contract.owner()
       console.log('✅ Contract owner:', owner)
     } catch (error) {
       console.error('❌ Contract owner check failed:', error)
