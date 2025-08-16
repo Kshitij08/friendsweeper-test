@@ -205,8 +205,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       return
     }
     
-    // Calculate position for popup
-    setPopupPosition({ x: event.clientX, y: event.clientY })
+    // Calculate position for popup with bounds checking
+    const position = calculatePopupPosition(event.clientX, event.clientY)
+    setPopupPosition(position)
     
     // On desktop, show the same popup as mobile
     setPopupRow(row)
@@ -216,15 +217,40 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
 
 
+  // Calculate popup position with bounds checking
+  const calculatePopupPosition = (x: number, y: number) => {
+    const popupWidth = 120 // Approximate width of popup with 2 buttons
+    const popupHeight = 80 // Approximate height of popup
+    const margin = 20 // Margin from screen edges
+    
+    let adjustedX = x
+    let adjustedY = y - popupHeight - 10 // Position above the click
+    
+    // Check horizontal bounds
+    if (adjustedX - popupWidth / 2 < margin) {
+      adjustedX = margin + popupWidth / 2
+    } else if (adjustedX + popupWidth / 2 > window.innerWidth - margin) {
+      adjustedX = window.innerWidth - margin - popupWidth / 2
+    }
+    
+    // Check vertical bounds
+    if (adjustedY < margin) {
+      adjustedY = y + 60 // Position below the click instead
+    }
+    
+    return { x: adjustedX, y: adjustedY }
+  }
+
   // Handle cell tap (mobile)
   const handleCellTap = (row: number, col: number, event: React.TouchEvent) => {
     if (gameState.gameOver || gameState.gameWon) return
     
     setTouchUsed(true)
     
-    // Calculate position for popup
+    // Calculate position for popup with bounds checking
     const touch = event.touches[0]
-    setPopupPosition({ x: touch.clientX, y: touch.clientY })
+    const position = calculatePopupPosition(touch.clientX, touch.clientY)
+    setPopupPosition(position)
     
     // Show action popup
     setPopupRow(row)
@@ -420,7 +446,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
             className="absolute bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-4 border border-gray-700 shadow-2xl"
             style={{
               left: popupPosition.x,
-              top: popupPosition.y - 80, // Position above the clicked square
+              top: popupPosition.y,
               transform: 'translateX(-50%)'
             }}
           >
