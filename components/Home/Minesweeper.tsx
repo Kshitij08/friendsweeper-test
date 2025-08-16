@@ -339,30 +339,52 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     
     try {
       console.log('Capturing game board screenshot...')
+      console.log('Game board element:', gameBoardRef.current)
+      console.log('Game board dimensions:', {
+        width: gameBoardRef.current.offsetWidth,
+        height: gameBoardRef.current.offsetHeight
+      })
+      
       // Dynamically import html2canvas to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default
+      console.log('html2canvas imported successfully')
       
       const canvas = await html2canvas(gameBoardRef.current, {
         backgroundColor: '#1a202c', // Match the background color
         scale: 2, // Higher resolution
         useCORS: true, // Allow cross-origin images (for profile pictures)
         allowTaint: true, // Allow tainted canvas
-        logging: false,
+        logging: true, // Enable logging for debugging
         width: gameBoardRef.current.offsetWidth,
         height: gameBoardRef.current.offsetHeight
       })
       
+      console.log('Canvas created successfully')
       const dataUrl = canvas.toDataURL('image/png', 0.9)
       console.log('Screenshot captured successfully:', dataUrl.substring(0, 50) + '...')
       return dataUrl
     } catch (error) {
       console.error('Failed to capture game board:', error)
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
       return null
     }
   }
 
   // Share game result
   const shareGameResult = async () => {
+    console.log('Share game result clicked')
+    
+    // Capture screenshot before opening modal
+    const boardImage = await captureGameBoard()
+    console.log('Screenshot captured for modal:', boardImage ? 'SUCCESS' : 'FAILED')
+    
+    if (boardImage) {
+      setGameState(prev => ({
+        ...prev,
+        boardImage: boardImage
+      }))
+    }
+    
     setShowShareModal(true)
   }
 
@@ -370,22 +392,17 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const handleShare = async () => {
     setIsSharing(true)
     try {
-      // Capture the game board screenshot
-      const boardImage = await captureGameBoard()
-      
-      // Store the captured image in game state
-      setGameState(prev => ({
-        ...prev,
-        boardImage: boardImage || undefined
-      }))
+      console.log('Starting share process...')
       
       const gameResult = {
         gameWon: gameState.gameWon,
         grid: gameState.grid,
         killedBy: gameState.killedBy,
         followers: followers,
-        boardImage: boardImage // Include the captured image
+        boardImage: gameState.boardImage
       }
+
+      console.log('Game result prepared with board image:', !!gameResult.boardImage)
 
       // Get the actual user FID from context
       const userFid = context?.user?.fid?.toString()
@@ -743,6 +760,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         onShare={handleShare}
         isSharing={isSharing}
         userFid={context?.user?.fid?.toString()}
+        onCaptureScreenshot={captureGameBoard}
       />
     </div>
   )

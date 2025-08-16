@@ -36,6 +36,7 @@ interface ShareResultModalProps {
   onShare: () => Promise<void>
   isSharing: boolean
   userFid?: string
+  onCaptureScreenshot?: () => Promise<string | null>
 }
 
 export function ShareResultModal({ 
@@ -44,7 +45,8 @@ export function ShareResultModal({
   gameResult, 
   onShare, 
   isSharing,
-  userFid
+  userFid,
+  onCaptureScreenshot
 }: ShareResultModalProps) {
   const { actions } = useFrame()
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
@@ -62,6 +64,8 @@ export function ShareResultModal({
   const generateCastData = async () => {
     setIsLoading(true)
     try {
+      console.log('Generating cast data...')
+      
       // Generate cast text
       let text = ''
       if (gameResult.gameWon) {
@@ -85,9 +89,11 @@ export function ShareResultModal({
 
       // Use the captured board image if available, otherwise generate one
       if (gameResult.boardImage) {
+        console.log('Using pre-captured board image')
         setImageDataUrl(gameResult.boardImage)
         setPublicImageUrl(gameResult.boardImage)
       } else {
+        console.log('No captured board image, falling back to generation')
         // Fallback to generating board image
         const response = await fetch('/api/generate-board-image', {
           method: 'POST',
