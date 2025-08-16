@@ -34,6 +34,7 @@ interface ShareResultModalProps {
   gameResult: GameResult
   onShare: () => Promise<void>
   isSharing: boolean
+  userFid?: string
 }
 
 export function ShareResultModal({ 
@@ -41,10 +42,12 @@ export function ShareResultModal({
   onClose, 
   gameResult, 
   onShare, 
-  isSharing 
+  isSharing,
+  userFid
 }: ShareResultModalProps) {
   const { actions } = useFrame()
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
+  const [publicImageUrl, setPublicImageUrl] = useState<string | null>(null)
   const [castText, setCastText] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -79,19 +82,21 @@ export function ShareResultModal({
       }
       setCastText(text)
 
-      // Generate board image
-      const response = await fetch('/api/generate-board-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ gameResult })
-      })
+             // Generate board image
+       const response = await fetch('/api/generate-board-image', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify({ gameResult, userFid })
+       })
 
-      if (response.ok) {
-        const result = await response.json()
-        setImageDataUrl(result.imageDataUrl)
-      }
+             if (response.ok) {
+         const result = await response.json()
+         console.log('Image generation result:', result)
+         setImageDataUrl(result.imageDataUrl)
+         setPublicImageUrl(result.publicUrl)
+       }
     } catch (error) {
       console.error('Error generating cast data:', error)
     } finally {
@@ -145,22 +150,25 @@ export function ShareResultModal({
           {/* Action Buttons */}
           <div className="flex gap-3 justify-center">
             <button
-              onClick={async () => {
-                if (actions && castText) {
-                  try {
-                    await actions.composeCast({
-                      text: castText,
-                      embeds: imageDataUrl ? [imageDataUrl] : []
-                    })
-                    onClose()
-                  } catch (error) {
-                    console.error('Error casting:', error)
-                    alert('Failed to cast. Please try again.')
-                  }
-                } else {
-                  await onShare()
-                }
-              }}
+                             onClick={async () => {
+                 if (actions && castText) {
+                   try {
+                     console.log('Casting with text:', castText)
+                     console.log('Casting with image URL:', publicImageUrl)
+                     
+                     await actions.composeCast({
+                       text: castText,
+                       embeds: publicImageUrl ? [publicImageUrl] : []
+                     })
+                     onClose()
+                   } catch (error) {
+                     console.error('Error casting:', error)
+                     alert('Failed to cast. Please try again.')
+                   }
+                 } else {
+                   await onShare()
+                 }
+               }}
               disabled={isSharing || isLoading}
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-8 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >

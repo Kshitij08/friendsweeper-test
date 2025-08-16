@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cacheFollowers, getCachedFollowers } from '@/lib/follower-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,18 @@ export async function GET(request: NextRequest) {
         { error: 'FID parameter is required' },
         { status: 400 }
       );
+    }
+
+    // Check cache first
+    const cachedFollowers = getCachedFollowers(fid);
+    if (cachedFollowers) {
+      return NextResponse.json({
+        success: true,
+        followers: cachedFollowers,
+        totalFollowers: cachedFollowers.length,
+        message: 'Returned cached followers',
+        cached: true
+      });
     }
 
     if (!process.env.NEYNAR_API_KEY) {
@@ -124,6 +137,9 @@ export async function GET(request: NextRequest) {
 
     // Shuffle the final list one more time to mix user followers and defaults
     finalFollowers = finalFollowers.sort(() => Math.random() - 0.5);
+
+    // Cache the followers for future use
+    cacheFollowers(fid, finalFollowers);
 
     return NextResponse.json({
       success: true,

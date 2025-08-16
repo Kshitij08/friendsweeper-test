@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ShareResultModal } from './ShareResultModal'
+import { useFrame } from '@/components/farcaster-provider'
 
 interface Follower {
   fid: number
@@ -34,6 +35,7 @@ interface MinesweeperProps {
 }
 
 export function Minesweeper({ followers = [] }: MinesweeperProps) {
+  const { context } = useFrame()
   const GRID_SIZE = 8
   const BOMB_COUNT = 16
 
@@ -342,9 +344,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         followers: followers
       }
 
-      // For now, we'll use a mock user FID
-      // In a real implementation, you'd get this from the user's session
-      const userFid = 12345 // This should come from user context
+      // Get the actual user FID from context
+      const userFid = context?.user?.fid?.toString()
 
       const response = await fetch('/api/cast-game-result', {
         method: 'POST',
@@ -353,7 +354,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         },
         body: JSON.stringify({
           gameResult,
-          userFid
+          userFid: userFid || '12345' // fallback to mock FID if not available
         })
       })
 
@@ -695,6 +696,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         }}
         onShare={handleShare}
         isSharing={isSharing}
+        userFid={context?.user?.fid?.toString()}
       />
     </div>
   )

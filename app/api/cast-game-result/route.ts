@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCachedFollowers } from '@/lib/follower-cache';
 
 interface Follower {
   fid: number;
@@ -27,7 +28,7 @@ interface GameResult {
 
 export async function POST(request: NextRequest) {
   try {
-    const { gameResult, userFid }: { gameResult: GameResult; userFid: number } = await request.json();
+    const { gameResult, userFid }: { gameResult: GameResult; userFid: string | number } = await request.json();
 
     if (!process.env.NEYNAR_API_KEY) {
       return NextResponse.json(
@@ -65,13 +66,15 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ gameResult })
+      body: JSON.stringify({ gameResult, userFid: userFid.toString() })
     });
 
     let imageDataUrl = null;
+    let publicImageUrl = null;
     if (imageResponse.ok) {
       const imageResult = await imageResponse.json();
       imageDataUrl = imageResult.imageDataUrl;
+      publicImageUrl = imageResult.publicUrl;
     }
 
     // Create a simple text representation of the board for now
@@ -91,6 +94,7 @@ export async function POST(request: NextRequest) {
       text: castText,
       boardRepresentation: boardText,
       imageDataUrl: imageDataUrl,
+      publicImageUrl: publicImageUrl,
       gameWon: gameResult.gameWon,
       userFid: userFid
     };
