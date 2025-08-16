@@ -46,7 +46,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         userAddress: address
       }
 
-      const response = await fetch('/api/mint-nft', {
+      const response = await fetch('/api/debug-mint', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
