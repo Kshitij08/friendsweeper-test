@@ -33,6 +33,8 @@ export interface MintNFTResponse {
   success: boolean;
   tokenId?: string;
   transactionHash?: string;
+  metadata?: NFTMetadata;
+  imageUrl?: string;
   error?: string;
 }
 
