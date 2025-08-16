@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTRequest, MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
@@ -19,8 +19,7 @@ interface NFTMintButtonProps {
 
 export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMintButtonProps) {
   const { address } = useAccount()
-  const { data: walletClient } = useWalletClient()
-  const { context } = useFrame()
+  const { context, isEthProviderAvailable } = useFrame()
   const [isMinting, setIsMinting] = useState(false)
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
   const [showMarketplace, setShowMarketplace] = useState(false)
@@ -32,8 +31,8 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       return
     }
 
-    if (!walletClient) {
-      onMintError?.('Wallet client not available')
+    if (!isEthProviderAvailable) {
+      onMintError?.('Farcaster wallet not available')
       return
     }
 
@@ -72,12 +71,23 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('User signing transaction...')
       const { transactionData } = result
 
-      const hash = await walletClient.sendTransaction({
-        to: transactionData.to as `0x${string}`,
-        data: transactionData.data as `0x${string}`,
-        gas: BigInt(transactionData.gasLimit),
-        maxFeePerGas: BigInt(transactionData.maxFeePerGas),
-        maxPriorityFeePerGas: BigInt(transactionData.maxPriorityFeePerGas)
+      // Use Farcaster SDK wallet provider
+      const sdk = await import('@farcaster/miniapp-sdk')
+      const ethProvider = sdk.default.wallet.ethProvider
+      
+      if (!ethProvider) {
+        throw new Error('Farcaster wallet provider not available')
+      }
+
+      const hash = await ethProvider.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          to: transactionData.to,
+          data: transactionData.data,
+          gas: transactionData.gasLimit,
+          maxFeePerGas: transactionData.maxFeePerGas,
+          maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas
+        }]
       })
 
       console.log('Transaction sent:', hash)
