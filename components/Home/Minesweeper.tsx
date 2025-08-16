@@ -57,6 +57,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [lastTapTime, setLastTapTime] = useState<number>(0)
   const [lastTapRow, setLastTapRow] = useState<number | null>(null)
   const [lastTapCol, setLastTapCol] = useState<number | null>(null)
+  const [touchUsed, setTouchUsed] = useState(false)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -156,6 +157,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const handleCellClick = (row: number, col: number) => {
     if (gameState.gameOver || gameState.gameWon) return
 
+    // Prevent click if touch events were used (mobile)
+    if (touchUsed) {
+      return
+    }
+
     // Prevent click if this was a long press
     if (wasLongPress(row, col)) {
       setLongPressCompleted(false)
@@ -238,6 +244,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
   // Handle touch start for long press detection
   const handleTouchStart = (row: number, col: number) => {
+    setTouchUsed(true)
     setLongPressCompleted(false)
     const timer = setTimeout(() => {
       handleLongPress(row, col)
@@ -249,13 +256,38 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   }
 
   // Handle touch end to cancel long press
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (row: number, col: number) => {
     if (longPressTimer) {
       clearTimeout(longPressTimer)
       setLongPressTimer(null)
     }
     setLongPressRow(null)
     setLongPressCol(null)
+    
+    // Check for double tap on touch end
+    const currentTime = Date.now()
+    const timeDiff = currentTime - lastTapTime
+    const isDoubleTap = timeDiff < 300 && lastTapRow === row && lastTapCol === col
+
+    if (isDoubleTap) {
+      // Double tap detected - flag the cell
+      flagCell(row, col)
+      setLastTapTime(0)
+      setLastTapRow(null)
+      setLastTapCol(null)
+      setTouchUsed(false)
+      return
+    }
+
+    // Single tap - update last tap info
+    setLastTapTime(currentTime)
+    setLastTapRow(row)
+    setLastTapCol(col)
+    
+    // Reset touch flag after a short delay
+    setTimeout(() => {
+      setTouchUsed(false)
+    }, 100)
   }
 
   // Handle touch move to cancel long press if finger moves
@@ -469,7 +501,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   onClick={() => handleCellClick(rowIndex, colIndex)}
                   onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
                   onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
-                  onTouchEnd={handleTouchEnd}
+                  onTouchEnd={() => handleTouchEnd(rowIndex, colIndex)}
                   onTouchMove={handleTouchMove}
                   onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
                   onMouseUp={handleMouseUp}
@@ -498,7 +530,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
              <div className="text-center mt-8">
          <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
            <p className="text-gray-300 text-sm font-medium">
-             💡 Tap to reveal • Long press or right-click to flag
+             💡 Tap to reveal • Double tap, long press, or right-click to flag
            </p>
          </div>
        </div>
