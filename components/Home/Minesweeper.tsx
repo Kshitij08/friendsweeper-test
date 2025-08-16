@@ -47,13 +47,6 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [showWinModal, setShowWinModal] = useState(false)
 
   const [firstClick, setFirstClick] = useState(true)
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
-  const [longPressRow, setLongPressRow] = useState<number | null>(null)
-  const [longPressCol, setLongPressCol] = useState<number | null>(null)
-  const [longPressCompleted, setLongPressCompleted] = useState(false)
-  const [mouseDownTimer, setMouseDownTimer] = useState<NodeJS.Timeout | null>(null)
-  const [mouseDownRow, setMouseDownRow] = useState<number | null>(null)
-  const [mouseDownCol, setMouseDownCol] = useState<number | null>(null)
   const [lastTapTime, setLastTapTime] = useState<number>(0)
   const [lastTapRow, setLastTapRow] = useState<number | null>(null)
   const [lastTapCol, setLastTapCol] = useState<number | null>(null)
@@ -165,7 +158,16 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       setFirstClick(false)
     }
 
+
+
     if (newGrid[row][col].isBomb) {
+      // Check if this was triggered by a double tap (mobile only)
+      if (doubleTapOccurred) {
+        // Double tap on bomb - flag it instead of ending game
+        flagCell(row, col)
+        return
+      }
+      
       // Game over - reveal all bombs
       for (let i = 0; i < GRID_SIZE; i++) {
         for (let j = 0; j < GRID_SIZE; j++) {
@@ -210,12 +212,6 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       return
     }
 
-    // Prevent click if this was a long press
-    if (wasLongPress(row, col)) {
-      setLongPressCompleted(false)
-      return
-    }
-
     // Check for double tap
     const currentTime = Date.now()
     const timeDiff = currentTime - lastTapTime
@@ -245,39 +241,13 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     flagCell(row, col)
   }
 
-  // Handle long press (flag) for mobile
-  const handleLongPress = (row: number, col: number) => {
-    flagCell(row, col)
-    setLongPressCompleted(true)
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      setLongPressCompleted(false)
-    }, 100)
-  }
-
-  // Handle touch start for long press detection
+  // Handle touch start
   const handleTouchStart = (row: number, col: number) => {
     setTouchUsed(true)
-    setLongPressCompleted(false)
-    const timer = setTimeout(() => {
-      handleLongPress(row, col)
-    }, 500) // 500ms long press threshold
-    
-    setLongPressTimer(timer)
-    setLongPressRow(row)
-    setLongPressCol(col)
   }
 
-  // Handle touch end to cancel long press
+  // Handle touch end
   const handleTouchEnd = (row: number, col: number) => {
-    // Only clear timer if long press hasn't completed yet
-    if (longPressTimer && !longPressCompleted) {
-      clearTimeout(longPressTimer)
-      setLongPressTimer(null)
-    }
-    setLongPressRow(null)
-    setLongPressCol(null)
-    
     // Check for double tap on touch end
     const currentTime = Date.now()
     const timeDiff = currentTime - lastTapTime
@@ -306,7 +276,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         handleCellReveal(row, col)
       }
       setDoubleTapOccurred(false) // Reset the flag
-    }, 350) // Slightly longer than double tap threshold (300ms)
+    }, 320) // Slightly longer than double tap threshold (300ms)
     
     // Reset touch flag after a short delay
     setTimeout(() => {
@@ -314,52 +284,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     }, 100)
   }
 
-  // Handle touch move to cancel long press if finger moves
-  const handleTouchMove = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      setLongPressTimer(null)
-    }
-    setLongPressRow(null)
-    setLongPressCol(null)
-  }
 
-  // Handle mouse down for desktop long press
-  const handleMouseDown = (row: number, col: number) => {
-    setLongPressCompleted(false)
-    const timer = setTimeout(() => {
-      handleLongPress(row, col)
-    }, 500) // 500ms long press threshold
-    
-    setMouseDownTimer(timer)
-    setMouseDownRow(row)
-    setMouseDownCol(col)
-  }
-
-  // Handle mouse up to cancel desktop long press
-  const handleMouseUp = () => {
-    if (mouseDownTimer) {
-      clearTimeout(mouseDownTimer)
-      setMouseDownTimer(null)
-    }
-    setMouseDownRow(null)
-    setMouseDownCol(null)
-  }
-
-  // Handle mouse leave to cancel desktop long press
-  const handleMouseLeave = () => {
-    if (mouseDownTimer) {
-      clearTimeout(mouseDownTimer)
-      setMouseDownTimer(null)
-    }
-    setMouseDownRow(null)
-    setMouseDownCol(null)
-  }
-
-  // Check if a long press was detected for a specific cell
-  const wasLongPress = (row: number, col: number) => {
-    return longPressCompleted && ((longPressRow === row && longPressCol === col) || (mouseDownRow === row && mouseDownCol === col))
-  }
 
   // Flag/unflag a cell
   const flagCell = (row: number, col: number) => {
@@ -400,17 +325,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     })
   }, [])
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer)
-      }
-      if (mouseDownTimer) {
-        clearTimeout(mouseDownTimer)
-      }
-    }
-  }, [longPressTimer, mouseDownTimer])
+
 
   const getCellContent = (cell: Cell) => {
     if (!cell.isRevealed) {
@@ -526,10 +441,6 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
                   onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
                   onTouchEnd={() => handleTouchEnd(rowIndex, colIndex)}
-                  onTouchMove={handleTouchMove}
-                  onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseLeave}
                   className={`
                     w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16
                     flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
@@ -554,7 +465,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
              <div className="text-center mt-8">
          <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
            <p className="text-gray-300 text-sm font-medium">
-             💡 Tap to reveal • Double tap, long press, or right-click to flag
+             💡 Tap to reveal • Double tap or right-click to flag
            </p>
          </div>
        </div>
