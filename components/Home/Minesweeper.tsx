@@ -58,6 +58,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [lastTapRow, setLastTapRow] = useState<number | null>(null)
   const [lastTapCol, setLastTapCol] = useState<number | null>(null)
   const [touchUsed, setTouchUsed] = useState(false)
+  const [doubleTapOccurred, setDoubleTapOccurred] = useState(false)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -288,6 +289,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       setLastTapTime(0)
       setLastTapRow(null)
       setLastTapCol(null)
+      setDoubleTapOccurred(true)
       setTouchUsed(false)
       return
     }
@@ -299,10 +301,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     
     // Delay single tap reveal to allow for double tap detection
     setTimeout(() => {
-      // Only reveal if this is still the last tap (no double tap occurred)
-      if (lastTapRow === row && lastTapCol === col && lastTapTime === currentTime) {
+      // Only reveal if no double tap occurred
+      if (!doubleTapOccurred) {
         handleCellReveal(row, col)
       }
+      setDoubleTapOccurred(false) // Reset the flag
     }, 350) // Slightly longer than double tap threshold (300ms)
     
     // Reset touch flag after a short delay
