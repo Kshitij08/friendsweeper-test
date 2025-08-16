@@ -88,6 +88,9 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org')
       
       const receipt = await provider.waitForTransaction(hash)
+      if (!receipt) {
+        throw new Error('Transaction receipt is null')
+      }
       console.log('Transaction confirmed:', receipt.hash)
 
       // Step 4: Extract token ID from logs
