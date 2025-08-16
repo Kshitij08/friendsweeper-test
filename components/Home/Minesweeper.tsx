@@ -50,6 +50,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
   const [longPressRow, setLongPressRow] = useState<number | null>(null)
   const [longPressCol, setLongPressCol] = useState<number | null>(null)
+  const [longPressCompleted, setLongPressCompleted] = useState(false)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -149,6 +150,12 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const handleCellClick = (row: number, col: number) => {
     if (gameState.gameOver || gameState.gameWon) return
 
+    // Prevent click if this was a long press
+    if (wasLongPress(row, col)) {
+      setLongPressCompleted(false)
+      return
+    }
+
     let newGrid = [...gameState.grid]
 
     if (firstClick) {
@@ -201,10 +208,12 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   // Handle long press (flag) for mobile
   const handleLongPress = (row: number, col: number) => {
     flagCell(row, col)
+    setLongPressCompleted(true)
   }
 
   // Handle touch start for long press detection
   const handleTouchStart = (row: number, col: number) => {
+    setLongPressCompleted(false)
     const timer = setTimeout(() => {
       handleLongPress(row, col)
     }, 500) // 500ms long press threshold
@@ -232,6 +241,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     }
     setLongPressRow(null)
     setLongPressCol(null)
+  }
+
+  // Check if a long press was detected for a specific cell
+  const wasLongPress = (row: number, col: number) => {
+    return longPressCompleted && longPressRow === row && longPressCol === col
   }
 
   // Flag/unflag a cell
@@ -398,7 +412,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   onTouchEnd={handleTouchEnd}
                   onTouchMove={handleTouchMove}
                   className={`
-                    w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14
+                    w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16
                     flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
                     ${cell.isRevealed ? 'bg-gray-200 shadow-inner' : 'bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 shadow-lg hover:shadow-xl'}
                     ${getCellColor(cell)}
