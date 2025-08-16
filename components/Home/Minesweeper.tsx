@@ -47,11 +47,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [showWinModal, setShowWinModal] = useState(false)
 
   const [firstClick, setFirstClick] = useState(true)
-  const [lastTapTime, setLastTapTime] = useState<number>(0)
-  const [lastTapRow, setLastTapRow] = useState<number | null>(null)
-  const [lastTapCol, setLastTapCol] = useState<number | null>(null)
-  const [touchUsed, setTouchUsed] = useState(false)
-  const [doubleTapOccurred, setDoubleTapOccurred] = useState(false)
+  const [showActionPopup, setShowActionPopup] = useState(false)
+  const [popupRow, setPopupRow] = useState<number | null>(null)
+  const [popupCol, setPopupCol] = useState<number | null>(null)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -161,13 +159,6 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
 
     if (newGrid[row][col].isBomb) {
-      // Check if this was triggered by a double tap (mobile only)
-      if (doubleTapOccurred) {
-        // Double tap on bomb - flag it instead of ending game
-        flagCell(row, col)
-        return
-      }
-      
       // Game over - reveal all bombs
       for (let i = 0; i < GRID_SIZE; i++) {
         for (let j = 0; j < GRID_SIZE; j++) {
@@ -206,82 +197,19 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   // Handle cell click (desktop only)
   const handleCellClick = (row: number, col: number) => {
     if (gameState.gameOver || gameState.gameWon) return
-
-    // Prevent click if touch events were used (mobile)
-    if (touchUsed) {
-      return
-    }
-
-    // Check for double tap
-    const currentTime = Date.now()
-    const timeDiff = currentTime - lastTapTime
-    const isDoubleTap = timeDiff < 300 && lastTapRow === row && lastTapCol === col
-
-    if (isDoubleTap) {
-      // Double tap detected - flag the cell
-      flagCell(row, col)
-      setLastTapTime(0)
-      setLastTapRow(null)
-      setLastTapCol(null)
-      return
-    }
-
-    // Single tap - update last tap info
-    setLastTapTime(currentTime)
-    setLastTapRow(row)
-    setLastTapCol(col)
-
-    // Handle single tap reveal
     handleCellReveal(row, col)
   }
 
-  // Handle right click (flag)
-  const handleRightClick = (e: React.MouseEvent, row: number, col: number) => {
-    e.preventDefault()
-    flagCell(row, col)
-  }
 
-  // Handle touch start
-  const handleTouchStart = (row: number, col: number) => {
-    setTouchUsed(true)
-  }
 
-  // Handle touch end
-  const handleTouchEnd = (row: number, col: number) => {
-    // Check for double tap on touch end
-    const currentTime = Date.now()
-    const timeDiff = currentTime - lastTapTime
-    const isDoubleTap = timeDiff < 300 && lastTapRow === row && lastTapCol === col
-
-    if (isDoubleTap) {
-      // Double tap detected - flag the cell
-      flagCell(row, col)
-      setLastTapTime(0)
-      setLastTapRow(null)
-      setLastTapCol(null)
-      setDoubleTapOccurred(true)
-      setTouchUsed(false)
-      return
-    }
-
-    // Single tap - update last tap info
-    setLastTapTime(currentTime)
-    setLastTapRow(row)
-    setLastTapCol(col)
+  // Handle cell tap (mobile)
+  const handleCellTap = (row: number, col: number) => {
+    if (gameState.gameOver || gameState.gameWon) return
     
-    // Delay single tap reveal to allow for double tap detection
-    setTimeout(() => {
-      // Only reveal if no double tap occurred
-      if (!doubleTapOccurred) {
-        handleCellReveal(row, col)
-      }
-      setDoubleTapOccurred(false) // Reset the flag
-    }, 320) // Slightly longer than double tap threshold (300ms)
-    
-    // Reset touch flag after a short delay
-    setTimeout(() => {
-      setTouchUsed(false)
-    }, 100)
+    // Show action popup
+    setPopupRow(row)
+    setPopupCol(col)
+    setShowActionPopup(true)
   }
 
 
@@ -438,9 +366,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                 <button
                   key={`${rowIndex}-${colIndex}`}
                   onClick={() => handleCellClick(rowIndex, colIndex)}
-                  onContextMenu={(e) => handleRightClick(e, rowIndex, colIndex)}
-                  onTouchStart={() => handleTouchStart(rowIndex, colIndex)}
-                  onTouchEnd={() => handleTouchEnd(rowIndex, colIndex)}
+                  onTouchStart={() => handleCellTap(rowIndex, colIndex)}
                   className={`
                     w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16
                     flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
@@ -462,10 +388,49 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         </div>
       </div>
 
+      {/* Action Popup */}
+      {showActionPopup && popupRow !== null && popupCol !== null && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-bold text-white">Choose Action</h3>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => {
+                  handleCellReveal(popupRow, popupCol)
+                  setShowActionPopup(false)
+                }}
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center"
+              >
+                ⛏️
+              </button>
+              <button
+                onClick={() => {
+                  flagCell(popupRow, popupCol)
+                  setShowActionPopup(false)
+                }}
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center"
+              >
+                🚩
+              </button>
+            </div>
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setShowActionPopup(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
              <div className="text-center mt-8">
          <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
            <p className="text-gray-300 text-sm font-medium">
-             💡 Tap to reveal • Double tap or right-click to flag
+             💡 Tap to choose action • Click to reveal (desktop)
            </p>
          </div>
        </div>
