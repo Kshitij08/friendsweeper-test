@@ -76,9 +76,14 @@ export async function GET(request: NextRequest) {
       verifiedAddresses: follower.user.verified_addresses?.eth_addresses || []
     }));
 
+    console.log('User followers FIDs:', userFollowers.map((f: any) => f.fid));
+
     // Randomly select up to 8 followers from the user's followers
     const shuffledFollowers = [...userFollowers].sort(() => Math.random() - 0.5);
     const selectedFollowers = shuffledFollowers.slice(0, Math.min(8, userFollowers.length));
+    
+    console.log('Selected followers FIDs:', selectedFollowers.map((f: any) => f.fid));
+    console.log('Number of selected followers:', selectedFollowers.length);
 
     // If we have less than 8 followers, fill with random default FIDs
     const remainingSlots = 8 - selectedFollowers.length;
@@ -90,6 +95,8 @@ export async function GET(request: NextRequest) {
       // Shuffle default FIDs and take what we need
       const shuffledDefaults = [...defaultFids].sort(() => Math.random() - 0.5);
       const selectedDefaults = shuffledDefaults.slice(0, remainingSlots);
+      
+      console.log('Selected default FIDs:', selectedDefaults);
       
       // Fetch details for selected default FIDs
       const defaultFollowersPromises = selectedDefaults.map(async (defaultFid) => {
@@ -146,6 +153,9 @@ export async function GET(request: NextRequest) {
 
     // Shuffle the final list one more time to mix user followers and defaults
     finalFollowers = finalFollowers.sort(() => Math.random() - 0.5);
+    
+    console.log('Final followers FIDs:', finalFollowers.map((f: any) => f.fid));
+    console.log('Total final followers:', finalFollowers.length);
 
     return NextResponse.json({
       success: true,

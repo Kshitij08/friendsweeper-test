@@ -154,12 +154,43 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     let newGrid = [...gameState.grid]
 
     if (firstClick) {
+      // Place bombs ensuring first click is safe
       newGrid = placeBombs(newGrid, row, col)
       setFirstClick(false)
+      
+      // On first click, reveal a larger area around the clicked cell
+      // This creates a better starting experience
+      for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+          const newRow = row + i
+          const newCol = col + j
+          if (newRow >= 0 && newRow < GRID_SIZE && newCol >= 0 && newCol < GRID_SIZE) {
+            if (!newGrid[newRow][newCol].isBomb && !newGrid[newRow][newCol].isFlagged) {
+              newGrid = revealCell(newGrid, newRow, newCol)
+            }
+          }
+        }
+      }
+      
+      // Check if game is won after first click
+      const revealedCount = newGrid.flat().filter(cell => cell.isRevealed).length
+      const totalCells = GRID_SIZE * GRID_SIZE
+      const gameWon = revealedCount === totalCells - BOMB_COUNT
+
+      setGameState({
+        ...gameState,
+        grid: newGrid,
+        gameWon
+      })
+      
+      if (gameWon) {
+        setShowWinModal(true)
+      }
+      
+      return
     }
 
-
-
+    // For subsequent clicks, check if it's a bomb
     if (newGrid[row][col].isBomb) {
       // Game over - reveal all bombs
       for (let i = 0; i < GRID_SIZE; i++) {
