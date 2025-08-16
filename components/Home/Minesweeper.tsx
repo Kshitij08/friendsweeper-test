@@ -153,39 +153,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     return newGrid
   }
 
-  // Handle cell click
-  const handleCellClick = (row: number, col: number) => {
+  // Handle cell reveal action
+  const handleCellReveal = (row: number, col: number) => {
     if (gameState.gameOver || gameState.gameWon) return
-
-    // Prevent click if touch events were used (mobile)
-    if (touchUsed) {
-      return
-    }
-
-    // Prevent click if this was a long press
-    if (wasLongPress(row, col)) {
-      setLongPressCompleted(false)
-      return
-    }
-
-    // Check for double tap
-    const currentTime = Date.now()
-    const timeDiff = currentTime - lastTapTime
-    const isDoubleTap = timeDiff < 300 && lastTapRow === row && lastTapCol === col
-
-    if (isDoubleTap) {
-      // Double tap detected - flag the cell
-      flagCell(row, col)
-      setLastTapTime(0)
-      setLastTapRow(null)
-      setLastTapCol(null)
-      return
-    }
-
-    // Single tap - update last tap info
-    setLastTapTime(currentTime)
-    setLastTapRow(row)
-    setLastTapCol(col)
 
     let newGrid = [...gameState.grid]
 
@@ -228,6 +198,44 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         setShowWinModal(true)
       }
     }
+  }
+
+  // Handle cell click (desktop only)
+  const handleCellClick = (row: number, col: number) => {
+    if (gameState.gameOver || gameState.gameWon) return
+
+    // Prevent click if touch events were used (mobile)
+    if (touchUsed) {
+      return
+    }
+
+    // Prevent click if this was a long press
+    if (wasLongPress(row, col)) {
+      setLongPressCompleted(false)
+      return
+    }
+
+    // Check for double tap
+    const currentTime = Date.now()
+    const timeDiff = currentTime - lastTapTime
+    const isDoubleTap = timeDiff < 300 && lastTapRow === row && lastTapCol === col
+
+    if (isDoubleTap) {
+      // Double tap detected - flag the cell
+      flagCell(row, col)
+      setLastTapTime(0)
+      setLastTapRow(null)
+      setLastTapCol(null)
+      return
+    }
+
+    // Single tap - update last tap info
+    setLastTapTime(currentTime)
+    setLastTapRow(row)
+    setLastTapCol(col)
+
+    // Handle single tap reveal
+    handleCellReveal(row, col)
   }
 
   // Handle right click (flag)
@@ -279,10 +287,13 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       return
     }
 
-    // Single tap - update last tap info
+    // Single tap - update last tap info and reveal cell
     setLastTapTime(currentTime)
     setLastTapRow(row)
     setLastTapCol(col)
+    
+    // Handle single tap reveal
+    handleCellReveal(row, col)
     
     // Reset touch flag after a short delay
     setTimeout(() => {
