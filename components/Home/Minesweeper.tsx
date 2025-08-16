@@ -247,6 +247,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
   // Handle cell tap (mobile)
   const handleCellTap = (row: number, col: number, event: React.TouchEvent) => {
+    event.preventDefault() // Prevent default touch behavior
+    
     if (gameState.gameOver || gameState.gameWon) return
     
     setTouchUsed(true)
@@ -256,7 +258,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     if (cell.isRevealed && !cell.isFlagged) return
     
     // Calculate position for popup with bounds checking
-    const touch = event.touches[0]
+    const touch = event.changedTouches[0] // Use changedTouches for touchEnd
     const position = calculatePopupPosition(touch.clientX, touch.clientY)
     setPopupPosition(position)
     
@@ -265,8 +267,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     setPopupCol(col)
     setShowActionPopup(true)
     
-    // Reset touch flag immediately
-    setTouchUsed(false)
+    // Keep touch flag true to prevent click event
+    // Reset it after a longer delay to ensure click doesn't fire
+    setTimeout(() => {
+      setTouchUsed(false)
+    }, 300)
   }
 
 
@@ -423,7 +428,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                 <button
                   key={`${rowIndex}-${colIndex}`}
                   onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
-                  onTouchStart={(e) => handleCellTap(rowIndex, colIndex, e)}
+                  onTouchEnd={(e) => handleCellTap(rowIndex, colIndex, e)}
                   className={`
                     w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16
                     flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
