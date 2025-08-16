@@ -50,6 +50,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [showActionPopup, setShowActionPopup] = useState(false)
   const [popupRow, setPopupRow] = useState<number | null>(null)
   const [popupCol, setPopupCol] = useState<number | null>(null)
+  const [touchUsed, setTouchUsed] = useState(false)
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 })
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -195,21 +197,44 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   }
 
   // Handle cell click (desktop only)
-  const handleCellClick = (row: number, col: number) => {
+  const handleCellClick = (row: number, col: number, event: React.MouseEvent) => {
     if (gameState.gameOver || gameState.gameWon) return
-    handleCellReveal(row, col)
+    
+    // Prevent click if touch events were used (mobile)
+    if (touchUsed) {
+      return
+    }
+    
+    // Calculate position for popup
+    setPopupPosition({ x: event.clientX, y: event.clientY })
+    
+    // On desktop, show the same popup as mobile
+    setPopupRow(row)
+    setPopupCol(col)
+    setShowActionPopup(true)
   }
 
 
 
   // Handle cell tap (mobile)
-  const handleCellTap = (row: number, col: number) => {
+  const handleCellTap = (row: number, col: number, event: React.TouchEvent) => {
     if (gameState.gameOver || gameState.gameWon) return
+    
+    setTouchUsed(true)
+    
+    // Calculate position for popup
+    const touch = event.touches[0]
+    setPopupPosition({ x: touch.clientX, y: touch.clientY })
     
     // Show action popup
     setPopupRow(row)
     setPopupCol(col)
     setShowActionPopup(true)
+    
+    // Reset touch flag after a short delay
+    setTimeout(() => {
+      setTouchUsed(false)
+    }, 100)
   }
 
 
@@ -365,8 +390,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
               {row.map((cell, colIndex) => (
                 <button
                   key={`${rowIndex}-${colIndex}`}
-                  onClick={() => handleCellClick(rowIndex, colIndex)}
-                  onTouchStart={() => handleCellTap(rowIndex, colIndex)}
+                  onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
+                  onTouchStart={(e) => handleCellTap(rowIndex, colIndex, e)}
                   className={`
                     w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16
                     flex items-center justify-center text-xs sm:text-sm md:text-base font-bold rounded-lg
@@ -390,12 +415,16 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
       {/* Action Popup */}
       {showActionPopup && popupRow !== null && popupCol !== null && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl">
-            <div className="text-center mb-4">
-              <h3 className="text-lg font-bold text-white">Choose Action</h3>
-            </div>
-            <div className="flex gap-4 justify-center">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
+          <div 
+            className="absolute bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-4 border border-gray-700 shadow-2xl"
+            style={{
+              left: popupPosition.x,
+              top: popupPosition.y - 80, // Position above the clicked square
+              transform: 'translateX(-50%)'
+            }}
+          >
+            <div className="flex gap-2 justify-center">
               <button
                 onClick={() => {
                   handleCellReveal(popupRow, popupCol)
@@ -415,14 +444,6 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                 🚩
               </button>
             </div>
-            <div className="text-center mt-4">
-              <button
-                onClick={() => setShowActionPopup(false)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -430,7 +451,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
              <div className="text-center mt-8">
          <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
            <p className="text-gray-300 text-sm font-medium">
-             💡 Tap to choose action • Click to reveal (desktop)
+             💡 Tap or click to choose action
            </p>
          </div>
        </div>
