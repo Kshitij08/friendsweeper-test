@@ -34,7 +34,7 @@ interface MinesweeperProps {
 
 export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const GRID_SIZE = 8
-  const BOMB_COUNT = 8
+  const BOMB_COUNT = 16
 
   const [gameState, setGameState] = useState<GameState>({
     grid: [],

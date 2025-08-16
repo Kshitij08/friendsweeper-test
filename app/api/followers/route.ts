@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Default FIDs to use as fallback
-    const defaultFids = [4753, 3, 12, 99, 1075899, 1350, 2233, 1188544];
+    const defaultFids = [4753, 3, 12, 99, 1075899, 1350, 2233, 1188544, 314967, 1137136, 5650, 37, 194, 239, 344019, 17979];
     
-    // Fetch more followers to have a larger pool for random selection
-    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=20&viewer_fid=${fid}&sort_type=desc_chron`;
+    // Fetch exactly 16 followers
+    const apiUrl = `https://api.neynar.com/v2/farcaster/followers/?fid=${fid}&limit=16&viewer_fid=${fid}&sort_type=desc_chron`;
     
     const response = await fetch(apiUrl, {
       headers: {
@@ -60,12 +60,9 @@ export async function GET(request: NextRequest) {
       verifiedAddresses: follower.user.verified_addresses?.eth_addresses || []
     }));
 
-    // Randomly select up to 8 followers from the user's followers
-    const shuffledFollowers = [...userFollowers].sort(() => Math.random() - 0.5);
-    const selectedFollowers = shuffledFollowers.slice(0, Math.min(8, userFollowers.length));
-
-    // If we have less than 8 followers, fill with random default FIDs
-    const remainingSlots = 8 - selectedFollowers.length;
+    // Use all fetched followers (up to 16)
+    const selectedFollowers = userFollowers;
+    const remainingSlots = 16 - selectedFollowers.length;
     let finalFollowers = [...selectedFollowers];
 
     if (remainingSlots > 0) {
