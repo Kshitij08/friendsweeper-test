@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { ShareResultModal } from './ShareResultModal'
 
 interface Follower {
   fid: number
@@ -52,6 +53,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
   const [popupCol, setPopupCol] = useState<number | null>(null)
   const [touchUsed, setTouchUsed] = useState(false)
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 })
+  const [isSharing, setIsSharing] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   // Initialize the game grid
   const initializeGrid = (): Cell[][] => {
@@ -323,6 +326,57 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     })
   }
 
+  // Share game result
+  const shareGameResult = async () => {
+    setShowShareModal(true)
+  }
+
+  // Handle actual sharing
+  const handleShare = async () => {
+    setIsSharing(true)
+    try {
+      const gameResult = {
+        gameWon: gameState.gameWon,
+        grid: gameState.grid,
+        killedBy: gameState.killedBy,
+        followers: followers
+      }
+
+      // For now, we'll use a mock user FID
+      // In a real implementation, you'd get this from the user's session
+      const userFid = 12345 // This should come from user context
+
+      const response = await fetch('/api/cast-game-result', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          gameResult,
+          userFid
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Show success message or trigger actual casting
+        console.log('Cast prepared:', result.castData)
+        // TODO: Trigger actual casting using Farcaster SDK
+        alert('Game result prepared for casting!')
+        setShowShareModal(false)
+      } else {
+        console.error('Failed to prepare cast:', result.error)
+        alert('Failed to prepare cast. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error sharing game result:', error)
+      alert('Error sharing game result. Please try again.')
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
   // Reset game
   const resetGame = () => {
     setGameState({
@@ -556,12 +610,21 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   <p className="text-gray-400 text-sm">@{gameState.killedBy.username}</p>
                 </div>
               </div>
-                             <button
-                 onClick={() => setShowGameOverModal(false)}
-                 className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg px-8 py-3 font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
-               >
-                 Close
-               </button>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={shareGameResult}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+                >
+                  <span>📤</span>
+                  <span>Share Result</span>
+                </button>
+                <button
+                  onClick={() => setShowGameOverModal(false)}
+                  className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg px-8 py-3 font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -600,16 +663,39 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   </div>
                 ))}
               </div>
-                             <button
-                 onClick={() => setShowWinModal(false)}
-                 className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg px-8 py-3 font-medium hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg mt-4"
-               >
-                 Close
-               </button>
+              <div className="flex gap-3 justify-center mt-4">
+                <button
+                  onClick={shareGameResult}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+                >
+                  <span>📤</span>
+                  <span>Share Result</span>
+                </button>
+                <button
+                  onClick={() => setShowWinModal(false)}
+                  className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg px-8 py-3 font-medium hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Share Result Modal */}
+      <ShareResultModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        gameResult={{
+          gameWon: gameState.gameWon,
+          grid: gameState.grid,
+          killedBy: gameState.killedBy,
+          followers: followers
+        }}
+        onShare={handleShare}
+        isSharing={isSharing}
+      />
     </div>
   )
 }
