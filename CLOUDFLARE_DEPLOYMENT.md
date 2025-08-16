@@ -35,7 +35,7 @@ wrangler login
 
 ### **2.3 Navigate to Worker Directory**
 ```bash
-cd cloudflare-worker
+cd _cloudflare-worker
 ```
 
 ### **2.4 Install Dependencies**
@@ -45,7 +45,7 @@ npm install
 
 ### **2.5 Update Configuration**
 
-Edit `cloudflare-worker/wrangler.jsonc`:
+Edit `_cloudflare-worker/wrangler.jsonc`:
 ```json
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -226,7 +226,7 @@ In Vercel dashboard, add:
 ### **Debug Commands**
 ```bash
 # Test worker locally
-cd cloudflare-worker
+cd _cloudflare-worker
 npm run dev
 
 # Check worker logs

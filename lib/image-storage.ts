@@ -24,7 +24,7 @@ function getStorage(): Map<string, StoredImage> {
 function cleanupExpiredImages() {
   const storage = getStorage();
   const oneHourAgo = Date.now() - 3600000;
-  for (const [key, value] of storage.entries()) {
+  for (const [key, value] of Array.from(storage.entries())) {
     if (value.timestamp < oneHourAgo) {
       storage.delete(key);
     }

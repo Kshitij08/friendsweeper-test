@@ -20,15 +20,15 @@ else
 fi
 
 # Create cloudflare-worker directory if it doesn't exist
-if [ ! -d "cloudflare-worker" ]; then
-    echo "📁 Creating cloudflare-worker directory..."
-    mkdir -p cloudflare-worker/src
+if [ ! -d "_cloudflare-worker" ]; then
+    echo "📁 Creating _cloudflare-worker directory..."
+    mkdir -p _cloudflare-worker/src
 fi
 
 echo ""
 echo "📋 Next Steps:"
-echo "1. Update cloudflare-worker/wrangler.jsonc with your Account ID"
-echo "2. Run: cd cloudflare-worker && npm install"
+echo "1. Update _cloudflare-worker/wrangler.jsonc with your Account ID"
+echo "2. Run: cd _cloudflare-worker && npm install"
 echo "3. Run: npm run deploy"
 echo "4. Update your .env.local with the worker URL"
 echo ""

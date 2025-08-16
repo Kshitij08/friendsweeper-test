@@ -1,0 +1,2 @@
+# Exclude Cloudflare Worker from Vercel builds
+_cloudflare-worker/
