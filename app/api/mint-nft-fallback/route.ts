@@ -95,10 +95,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<MintNFTRe
     
     console.log('Minting NFT with metadata URI...')
     const mintTx = await contract.mint(
-      body.userAddress,
-      BigInt(1), // amount - convert to BigInt
-      metadataUri,
-      { gasLimit: 500000 }
+      body.userAddress, // to address
+      metadataUri, // metadata URI
+      BigInt(1) // amount - convert to BigInt
     )
 
     console.log('Transaction sent:', mintTx.hash)
