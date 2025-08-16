@@ -29,6 +29,9 @@ interface GameState {
   bombsRemaining: number
   killedBy?: Follower
   boardImage?: string // Add captured board image
+  startTime?: number // Game start time
+  endTime?: number // Game end time
+  solvingTime?: number // Total solving time in seconds
 }
 
 interface MinesweeperProps {
@@ -47,6 +50,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
     gameWon: false,
     bombsRemaining: BOMB_COUNT
   })
+
+  const [currentTime, setCurrentTime] = useState<number>(0)
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null)
 
   const [showGameOverModal, setShowGameOverModal] = useState(false)
   const [showWinModal, setShowWinModal] = useState(false)
@@ -165,6 +171,9 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       newGrid = placeBombs(newGrid, row, col)
       setFirstClick(false)
       
+      // Start the timer on first click
+      startTimer()
+      
       // On first click, reveal a larger area around the clicked cell
       // This creates a better starting experience
       for (let i = -2; i <= 2; i++) {
@@ -207,6 +216,7 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
           }
         }
       }
+      stopTimer()
       setGameState({
         ...gameState,
         grid: newGrid,
@@ -229,9 +239,44 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
       })
       
       if (gameWon) {
+        stopTimer()
         setShowWinModal(true)
       }
     }
+  }
+
+  // Timer functions
+  const startTimer = () => {
+    const startTime = Date.now()
+    setGameState(prev => ({ ...prev, startTime }))
+    
+    const interval = setInterval(() => {
+      setCurrentTime(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
+    
+    setTimerInterval(interval)
+  }
+
+  const stopTimer = () => {
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      setTimerInterval(null)
+    }
+    
+    const endTime = Date.now()
+    const solvingTime = Math.floor((endTime - (gameState.startTime || endTime)) / 1000)
+    
+    setGameState(prev => ({ 
+      ...prev, 
+      endTime, 
+      solvingTime 
+    }))
+  }
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   // Handle cell click (desktop only)
@@ -440,13 +485,23 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
 
   // Reset game
   const resetGame = () => {
+    // Stop timer if running
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      setTimerInterval(null)
+    }
+    
     setGameState({
       grid: initializeGrid(),
       gameOver: false,
       gameWon: false,
       bombsRemaining: BOMB_COUNT,
-      boardImage: undefined
+      boardImage: undefined,
+      startTime: undefined,
+      endTime: undefined,
+      solvingTime: undefined
     })
+    setCurrentTime(0)
     setFirstClick(true)
     setShowGameOverModal(false)
     setShowWinModal(false)
@@ -533,11 +588,29 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
         )}
         
         <div className="flex justify-between items-center mb-6 bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-lg font-semibold text-gray-200">
-              Bombs: {gameState.bombsRemaining}
-            </span>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-lg font-semibold text-gray-200">
+                Bombs: {gameState.bombsRemaining}
+              </span>
+            </div>
+            {!firstClick && !gameState.gameOver && !gameState.gameWon && (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-lg font-semibold text-gray-200">
+                  Time: {formatTime(currentTime)}
+                </span>
+              </div>
+            )}
+            {(gameState.gameOver || gameState.gameWon) && gameState.solvingTime && (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-lg font-semibold text-gray-200">
+                  Time: {formatTime(gameState.solvingTime)}
+                </span>
+              </div>
+            )}
           </div>
           <button
             onClick={resetGame}
@@ -652,6 +725,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">💥</div>
               <h3 className="text-xl font-bold text-white mb-2">Game Over!</h3>
+              {gameState.solvingTime && (
+                <p className="text-blue-400 text-lg font-semibold mb-2">
+                  Time: {formatTime(gameState.solvingTime)}
+                </p>
+              )}
               <div className="flex items-center justify-center space-x-3 mb-4">
                 {gameState.killedBy.pfpUrl ? (
                   <img
@@ -700,6 +778,11 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
             <div className="text-center">
               <div className="text-green-500 text-6xl mb-4">🎉</div>
               <h3 className="text-xl font-bold text-white mb-4">You Survived!</h3>
+              {gameState.solvingTime && (
+                <p className="text-blue-400 text-lg font-semibold mb-2">
+                  Time: {formatTime(gameState.solvingTime)}
+                </p>
+              )}
               <p className="text-gray-300 mb-4">You avoided all your followers:</p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                                  {getBombFollowers().map((follower, index) => (
@@ -755,7 +838,8 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
           grid: gameState.grid,
           killedBy: gameState.killedBy,
           followers: followers,
-          boardImage: gameState.boardImage // Pass the captured board image
+          boardImage: gameState.boardImage, // Pass the captured board image
+          solvingTime: gameState.solvingTime // Pass the solving time
         }}
         onShare={handleShare}
         isSharing={isSharing}

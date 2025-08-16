@@ -27,6 +27,7 @@ interface GameResult {
   killedBy?: Follower
   followers: Follower[]
   boardImage?: string // Add the captured board image
+  solvingTime?: number // Total solving time in seconds
 }
 
 interface ShareResultModalProps {
@@ -68,6 +69,8 @@ export function ShareResultModal({
       
       // Generate cast text
       let text = ''
+      const timeText = gameResult.solvingTime ? ` in ${Math.floor(gameResult.solvingTime / 60)}:${(gameResult.solvingTime % 60).toString().padStart(2, '0')}` : ''
+      
       if (gameResult.gameWon) {
         const bombFollowers = gameResult.grid.flat()
           .filter(cell => cell.isBomb && cell.follower)
@@ -77,12 +80,12 @@ export function ShareResultModal({
           .map(follower => `@${follower.username}`)
           .join(' ')
         
-        text = `Avoided ${followerMentions} to win 100 points! 🎉`
+        text = `Avoided ${followerMentions} to win 100 points${timeText}! 🎉`
       } else {
         if (gameResult.killedBy) {
-          text = `Got killed by @${gameResult.killedBy.username}, lost 100 points. 💥`
+          text = `Got killed by @${gameResult.killedBy.username}, lost 100 points${timeText}. 💥`
         } else {
-          text = `Game over! Lost 100 points. 💥`
+          text = `Game over! Lost 100 points${timeText}. 💥`
         }
       }
       setCastText(text)
