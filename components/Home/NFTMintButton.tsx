@@ -26,6 +26,13 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null)
 
   const handleMintNFT = async () => {
+    console.log('Mint NFT clicked - Debug info:', {
+      address,
+      isEthProviderAvailable,
+      hasBoardImage: !!gameResult.boardImage,
+      contextUser: context?.user
+    })
+
     if (!address) {
       onMintError?.('Wallet not connected')
       return
@@ -45,11 +52,30 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
+      // Get user address - try Wagmi first, then Farcaster SDK
+      let userAddress = address
+      if (!userAddress) {
+        try {
+          const sdk = await import('@farcaster/miniapp-sdk')
+          const accounts = await sdk.default.wallet.ethProvider?.request({
+            method: 'eth_accounts'
+          })
+          userAddress = accounts?.[0]
+          console.log('Got address from Farcaster SDK:', userAddress)
+        } catch (e) {
+          console.error('Failed to get address from Farcaster SDK:', e)
+        }
+      }
+
+      if (!userAddress) {
+        throw new Error('No wallet address available')
+      }
+
       // Step 1: Prepare transaction data
       const mintRequest: MintNFTRequest = {
         gameResult,
         userFid: context?.user?.fid?.toString(),
-        userAddress: address
+        userAddress: userAddress
       }
 
       console.log('Preparing transaction data...')

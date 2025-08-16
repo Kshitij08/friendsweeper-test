@@ -21,8 +21,17 @@ export async function POST(request: NextRequest) {
     console.log('Request received:', { 
       hasGameResult: !!body.gameResult,
       hasUserAddress: !!body.userAddress,
+      userAddress: body.userAddress,
       hasBoardImage: !!body.gameResult?.boardImage
     })
+
+    // Validate user address
+    if (!body.userAddress || body.userAddress === '0x0000000000000000000000000000000000000000') {
+      return NextResponse.json(
+        { success: false, error: 'Invalid user address' },
+        { status: 400 }
+      )
+    }
 
     // Step 1: Upload image to Cloudflare (this works)
     console.log('Step 1: Uploading image to Cloudflare...')
