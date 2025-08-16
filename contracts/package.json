@@ -1,0 +1,32 @@
+{
+  "name": "friendsweeper-nft-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for Friendsweeper NFT minting",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:base-sepolia": "hardhat run scripts/deploy-nft-contract.js --network baseSepolia",
+    "deploy:base": "hardhat run scripts/deploy-nft-contract.js --network base",
+    "deploy:local": "hardhat run scripts/deploy-nft-contract.js --network localhost",
+    "verify:base-sepolia": "hardhat verify --network baseSepolia",
+    "verify:base": "hardhat verify --network base"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0",
+    "dotenv": "^16.3.0"
+  },
+  "keywords": [
+    "nft",
+    "ethereum",
+    "base",
+    "friendsweeper",
+    "smart-contracts"
+  ],
+  "author": "Friendsweeper Team",
+  "license": "MIT"
+}

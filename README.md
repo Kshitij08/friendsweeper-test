@@ -294,3 +294,22 @@ In this guide, you explored Farcaster Mini Apps — the simplest way to create e
 You also discovered the key capabilities of Mini Apps and how you can use the [Base Farcaster MiniApp Template](https://github.com/base-developers/base-miniapp-template) to build your own.
 
 For more details, check out the official Mini App documentation [here](https://miniapps.farcaster.xyz/).
+
+## NFT Minting Integration
+
+This template now includes NFT minting functionality that allows players to mint their Friendsweeper game board images as NFTs on the Base network.
+
+### Features
+- **Game Board NFTs**: Mint your completed game boards as unique NFTs
+- **Rich Metadata**: Each NFT includes game result, solving time, follower count, and more
+- **Cloudflare R2 Storage**: Board images and metadata are stored in your Cloudflare R2 bucket
+- **Base Network**: Minted on Base Sepolia (testnet) and Base Mainnet
+
+### Usage
+1. Complete a Friendsweeper game
+2. Connect your wallet in the game over/win modal
+3. Click "Mint as NFT" to create your NFT
+4. Approve the transaction in your wallet
+5. View your NFT in your wallet or on BaseScan
+
+For detailed setup instructions, see [NFT_INTEGRATION.md](./NFT_INTEGRATION.md).

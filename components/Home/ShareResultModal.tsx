@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
+import { NFTMintButton } from './NFTMintButton'
 
 interface Follower {
   fid: number
@@ -189,30 +190,46 @@ export function ShareResultModal({
             </div>
           )}
 
+          {/* NFT Minting Section */}
+          {imageDataUrl && (
+            <div className="bg-gray-700/50 rounded-xl p-4 mb-6 border border-gray-600">
+              <h4 className="text-white font-semibold mb-3">Mint as NFT:</h4>
+              <NFTMintButton 
+                gameResult={gameResult}
+                onMintSuccess={(response) => {
+                  console.log('NFT minted successfully:', response)
+                }}
+                onMintError={(error) => {
+                  console.error('NFT minting failed:', error)
+                }}
+              />
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex gap-3 justify-center">
             <button
-                             onClick={async () => {
-                 if (actions && castText) {
-                   try {
-                                           console.log('Casting with text:', castText)
-                      console.log('Casting with image URL:', publicImageUrl)
-                      console.log('Image URL type:', publicImageUrl?.substring(0, 30))
-                     
-                     // Try casting with the text-based image
-                     await actions.composeCast({
-                       text: castText,
-                       embeds: publicImageUrl ? [publicImageUrl] : []
-                     })
-                     onClose()
-                   } catch (error) {
-                     console.error('Error casting:', error)
-                     alert('Failed to cast. Please try again.')
-                   }
-                 } else {
-                   await onShare()
-                 }
-               }}
+              onClick={async () => {
+                if (actions && castText) {
+                  try {
+                    console.log('Casting with text:', castText)
+                    console.log('Casting with image URL:', publicImageUrl)
+                    console.log('Image URL type:', publicImageUrl?.substring(0, 30))
+                   
+                    // Try casting with the text-based image
+                    await actions.composeCast({
+                      text: castText,
+                      embeds: publicImageUrl ? [publicImageUrl] : []
+                    })
+                    onClose()
+                  } catch (error) {
+                    console.error('Error casting:', error)
+                    alert('Failed to cast. Please try again.')
+                  }
+                } else {
+                  await onShare()
+                }
+              }}
               disabled={isSharing || isLoading}
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-8 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ShareResultModal } from './ShareResultModal'
 import { useFrame } from '@/components/farcaster-provider'
+import { NFTMintButton } from './NFTMintButton'
 
 interface Follower {
   fid: number
@@ -751,20 +752,44 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   <p className="text-gray-400 text-sm">@{gameState.killedBy.username}</p>
                 </div>
               </div>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={shareGameResult}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
-                >
-                  <span>📤</span>
-                  <span>Share Result</span>
-                </button>
-                <button
-                  onClick={() => setShowGameOverModal(false)}
-                  className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg px-8 py-3 font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  Close
-                </button>
+              <div className="space-y-4">
+                {/* NFT Minting */}
+                <div className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50">
+                  <h4 className="text-white font-semibold mb-3 text-center">Mint as NFT:</h4>
+                  <NFTMintButton 
+                    gameResult={{
+                      gameWon: gameState.gameWon,
+                      grid: gameState.grid,
+                      killedBy: gameState.killedBy,
+                      followers: followers,
+                      boardImage: gameState.boardImage,
+                      solvingTime: gameState.solvingTime
+                    }}
+                    onMintSuccess={(response) => {
+                      console.log('NFT minted successfully:', response)
+                    }}
+                    onMintError={(error) => {
+                      console.error('NFT minting failed:', error)
+                    }}
+                  />
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={shareGameResult}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+                  >
+                    <span>📤</span>
+                    <span>Share Result</span>
+                  </button>
+                  <button
+                    onClick={() => setShowGameOverModal(false)}
+                    className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg px-8 py-3 font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -809,20 +834,44 @@ export function Minesweeper({ followers = [] }: MinesweeperProps) {
                   </div>
                 ))}
               </div>
-              <div className="flex gap-3 justify-center mt-4">
-                <button
-                  onClick={shareGameResult}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
-                >
-                  <span>📤</span>
-                  <span>Share Result</span>
-                </button>
-                <button
-                  onClick={() => setShowWinModal(false)}
-                  className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg px-8 py-3 font-medium hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  Close
-                </button>
+              <div className="space-y-4 mt-4">
+                {/* NFT Minting */}
+                <div className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50">
+                  <h4 className="text-white font-semibold mb-3 text-center">Mint as NFT:</h4>
+                  <NFTMintButton 
+                    gameResult={{
+                      gameWon: gameState.gameWon,
+                      grid: gameState.grid,
+                      killedBy: gameState.killedBy,
+                      followers: followers,
+                      boardImage: gameState.boardImage,
+                      solvingTime: gameState.solvingTime
+                    }}
+                    onMintSuccess={(response) => {
+                      console.log('NFT minted successfully:', response)
+                    }}
+                    onMintError={(error) => {
+                      console.error('NFT minting failed:', error)
+                    }}
+                  />
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={shareGameResult}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+                  >
+                    <span>📤</span>
+                    <span>Share Result</span>
+                  </button>
+                  <button
+                    onClick={() => setShowWinModal(false)}
+                    className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg px-8 py-3 font-medium hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
