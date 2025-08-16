@@ -95,12 +95,12 @@ export async function POST(request: NextRequest) {
     console.log('Step 7: Testing blockchain connection...')
     try {
       const { ethers } = await import('ethers')
-      const provider = new ethers.JsonRpcProvider(rpcUrl)
-      const signer = new ethers.Wallet(ownerPrivateKey, provider)
+      const provider = new ethers.JsonRpcProvider(rpcUrl!)
+      const signer = new ethers.Wallet(ownerPrivateKey!, provider)
       console.log('✅ Provider and signer created')
       
       const NFTContract = await import('@/lib/contracts/FriendsweeperNFT.json')
-      const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, signer)
+      const contract = new ethers.Contract(contractAddress!, NFTContract.default.abi, signer)
       console.log('✅ Contract instance created')
     } catch (error) {
       console.error('❌ Blockchain connection failed:', error)
