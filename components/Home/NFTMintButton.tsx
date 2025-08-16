@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAccount } from 'wagmi'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTRequest, MintNFTResponse } from '@/types'
+import { Marketplace } from './Marketplace'
 
 interface NFTMintButtonProps {
   gameResult: {
@@ -21,6 +22,8 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const { context } = useFrame()
   const [isMinting, setIsMinting] = useState(false)
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
+  const [showMarketplace, setShowMarketplace] = useState(false)
+  const [mintedTokenId, setMintedTokenId] = useState<string | null>(null)
 
   const handleMintNFT = async () => {
     if (!address) {
@@ -53,11 +56,12 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
 
       const result: MintNFTResponse = await response.json()
 
-      if (result.success) {
-        setMintStatus('success')
-        onMintSuccess?.(result)
-        console.log('NFT minted successfully:', result)
-      } else {
+                   if (result.success) {
+               setMintStatus('success')
+               setMintedTokenId(result.tokenId || null)
+               onMintSuccess?.(result)
+               console.log('NFT minted successfully:', result)
+             } else {
         setMintStatus('error')
         onMintError?.(result.error || 'Failed to mint NFT')
         console.error('NFT minting failed:', result.error)
@@ -99,7 +103,8 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   }
 
   return (
-    <div className="space-y-3">
+    <>
+      <div className="space-y-3">
       <button
         onClick={handleMintNFT}
         disabled={isMinting || !address || !gameResult.boardImage}
@@ -123,22 +128,39 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         </p>
       )}
       
-      {mintStatus === 'success' && (
-        <div className="text-center">
-          <p className="text-sm text-green-400">
-            Your game board has been minted as an NFT! 🎉
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Check your wallet to view your NFT
-          </p>
-        </div>
-      )}
+                   {mintStatus === 'success' && (
+               <div className="text-center space-y-3">
+                 <p className="text-sm text-green-400">
+                   Your game board has been minted as an NFT! 🎉
+                 </p>
+                 <p className="text-xs text-gray-400">
+                   Check your wallet to view your NFT
+                 </p>
+                 {mintedTokenId && (
+                   <button
+                     onClick={() => setShowMarketplace(true)}
+                     className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                   >
+                     🏪 Open Marketplace
+                   </button>
+                 )}
+               </div>
+             )}
       
       {mintStatus === 'error' && (
         <p className="text-sm text-red-400 text-center">
           Failed to mint NFT. Please try again.
         </p>
-      )}
-    </div>
-  )
-}
+               )}
+       </div>
+
+       {/* Marketplace Modal */}
+       {showMarketplace && mintedTokenId && (
+         <Marketplace
+           tokenId={mintedTokenId}
+           onClose={() => setShowMarketplace(false)}
+         />
+       )}
+     </>
+   )
+ }

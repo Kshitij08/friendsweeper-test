@@ -26,6 +26,12 @@ The Friendsweeper game now includes NFT minting functionality that allows player
 - Metadata JSON files are stored in Cloudflare R2 bucket
 - Provides reliable, fast, and cost-effective storage for NFT assets
 
+### 4. Marketplace & Royalty System
+- Built-in marketplace for listing and buying NFTs
+- 5% royalty fee automatically paid to creator on all sales
+- Royalty recipient: `0xF51Fe86498b83538E902e160F2D80c34C7d6b816`
+- ERC-2981 compliant royalty standard
+
 ## Implementation Details
 
 ### API Endpoint
@@ -37,6 +43,20 @@ The Friendsweeper game now includes NFT minting functionality that allows player
 - Generates and uploads metadata to Cloudflare R2
 - Returns minting response with transaction details
 
+#### `/api/marketplace/list-nft`
+- Lists an NFT for sale on the marketplace
+- Validates ownership and price
+- Creates listing with timestamp
+
+#### `/api/marketplace/buy-nft`
+- Purchases an NFT from the marketplace
+- Handles payment distribution (95% to seller, 5% royalty)
+- Transfers NFT ownership
+
+#### `/api/marketplace/get-listing`
+- Retrieves listing information for a specific NFT
+- Returns seller, price, listing status, and timestamp
+
 ### Components
 
 #### `NFTMintButton`
@@ -44,6 +64,14 @@ The Friendsweeper game now includes NFT minting functionality that allows player
 - Manages minting state and UI feedback
 - Integrates with the minting API
 - Provides user feedback for success/error states
+- Includes marketplace access after successful minting
+
+#### `Marketplace`
+- Complete marketplace interface for listing and buying NFTs
+- Real-time listing information display
+- Price input and validation
+- Buy/sell transaction handling
+- Royalty information display
 
 #### Updated Modals
 - Game Over Modal: Includes NFT minting option
@@ -61,12 +89,20 @@ The Friendsweeper game now includes NFT minting functionality that allows player
 
 ## Usage
 
+### NFT Minting
 1. **Play Game**: Complete a Friendsweeper game
 2. **Game Over/Win**: When the game ends, the modal will show NFT minting option
 3. **Connect Wallet**: Ensure your wallet is connected
 4. **Mint NFT**: Click "Mint as NFT" button
 5. **Confirm Transaction**: Approve the minting transaction in your wallet
 6. **View NFT**: Check your wallet to see the minted NFT
+
+### Marketplace Trading
+1. **Access Marketplace**: Click "Open Marketplace" after minting
+2. **List NFT**: Set a price and list your NFT for sale
+3. **Buy NFT**: Browse and purchase NFTs from other players
+4. **Royalty System**: 5% of all sales automatically go to the creator
+5. **Track Transactions**: View all marketplace activity on BaseScan
 
 ## NFT Metadata Structure
 

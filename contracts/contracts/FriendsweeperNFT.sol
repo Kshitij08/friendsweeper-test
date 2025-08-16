@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 
-contract FriendsweeperNFT is ERC1155, Ownable {
+contract FriendsweeperNFT is ERC1155, ERC2981, Ownable {
     using Strings for uint256;
     
     uint256 private _tokenIds;
@@ -16,11 +17,30 @@ contract FriendsweeperNFT is ERC1155, Ownable {
     // Mapping from token ID to metadata URI
     mapping(uint256 => string) private _tokenURIs;
     
+    // Marketplace listing info
+    mapping(uint256 => Listing) private _listings;
+    
+    // Royalty recipient address
+    address public constant ROYALTY_RECIPIENT = 0xF51Fe86498b83538E902e160F2D80c34C7d6b816;
+    uint96 public constant ROYALTY_PERCENTAGE = 500; // 5% = 500 basis points
+    
+    struct Listing {
+        address seller;
+        uint256 price;
+        bool isListed;
+        uint256 listingTime;
+    }
+    
     // Events
     event NFTMinted(address indexed to, uint256 indexed tokenId, string tokenURI, uint256 amount);
+    event NFTListed(address indexed seller, uint256 indexed tokenId, uint256 price);
+    event NFTSold(address indexed seller, address indexed buyer, uint256 indexed tokenId, uint256 price);
+    event NFTDelisted(address indexed seller, uint256 indexed tokenId);
     
     constructor() ERC1155("") Ownable(msg.sender) {
         _baseTokenURI = "";
+        // Set default royalty to 5% for the specified recipient
+        _setDefaultRoyalty(ROYALTY_RECIPIENT, ROYALTY_PERCENTAGE);
     }
     
     /**
@@ -76,6 +96,89 @@ contract FriendsweeperNFT is ERC1155, Ownable {
         }
         
         return tokenIds;
+    }
+    
+    /**
+     * @dev List an NFT for sale
+     * @param tokenId The ID of the token to list
+     * @param price The price in wei
+     */
+    function listNFT(uint256 tokenId, uint256 price) public {
+        require(balanceOf(msg.sender, tokenId) > 0, "You don't own this NFT");
+        require(price > 0, "Price must be greater than 0");
+        require(!_listings[tokenId].isListed, "NFT is already listed");
+        
+        _listings[tokenId] = Listing({
+            seller: msg.sender,
+            price: price,
+            isListed: true,
+            listingTime: block.timestamp
+        });
+        
+        emit NFTListed(msg.sender, tokenId, price);
+    }
+    
+    /**
+     * @dev Buy an NFT from the marketplace
+     * @param tokenId The ID of the token to buy
+     */
+    function buyNFT(uint256 tokenId) public payable {
+        Listing memory listing = _listings[tokenId];
+        require(listing.isListed, "NFT is not listed for sale");
+        require(msg.value >= listing.price, "Insufficient payment");
+        require(msg.sender != listing.seller, "Cannot buy your own NFT");
+        
+        // Calculate royalty (5%)
+        uint256 royaltyAmount = (listing.price * ROYALTY_PERCENTAGE) / 10000;
+        uint256 sellerAmount = listing.price - royaltyAmount;
+        
+        // Transfer NFT
+        _safeTransferFrom(listing.seller, msg.sender, tokenId, 1, "");
+        
+        // Transfer payments
+        (bool royaltySuccess, ) = ROYALTY_RECIPIENT.call{value: royaltyAmount}("");
+        require(royaltySuccess, "Royalty transfer failed");
+        
+        (bool sellerSuccess, ) = listing.seller.call{value: sellerAmount}("");
+        require(sellerSuccess, "Seller payment failed");
+        
+        // Refund excess payment
+        if (msg.value > listing.price) {
+            (bool refundSuccess, ) = msg.sender.call{value: msg.value - listing.price}("");
+            require(refundSuccess, "Refund failed");
+        }
+        
+        // Clear listing
+        delete _listings[tokenId];
+        
+        emit NFTSold(listing.seller, msg.sender, tokenId, listing.price);
+    }
+    
+    /**
+     * @dev Delist an NFT from the marketplace
+     * @param tokenId The ID of the token to delist
+     */
+    function delistNFT(uint256 tokenId) public {
+        Listing memory listing = _listings[tokenId];
+        require(listing.isListed, "NFT is not listed");
+        require(msg.sender == listing.seller, "Only seller can delist");
+        
+        delete _listings[tokenId];
+        
+        emit NFTDelisted(msg.sender, tokenId);
+    }
+    
+    /**
+     * @dev Get listing information
+     * @param tokenId The ID of the token
+     * @return seller The seller address
+     * @return price The listing price
+     * @return isListed Whether the NFT is listed
+     * @return listingTime When the NFT was listed
+     */
+    function getListing(uint256 tokenId) public view returns (address seller, uint256 price, bool isListed, uint256 listingTime) {
+        Listing memory listing = _listings[tokenId];
+        return (listing.seller, listing.price, listing.isListed, listing.listingTime);
     }
     
     /**
@@ -149,5 +252,19 @@ contract FriendsweeperNFT is ERC1155, Ownable {
     function emergencyPause() public onlyOwner {
         // This is a placeholder for emergency pause functionality
         // You can implement a pause mechanism using OpenZeppelin's Pausable
+    }
+    
+    /**
+     * @dev Override required for ERC2981
+     */
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal virtual override(ERC1155) {
+        super._update(from, to, ids, values);
+    }
+    
+    /**
+     * @dev Override required for ERC2981
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155, ERC2981) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }
