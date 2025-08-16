@@ -156,6 +156,7 @@ export function ShareResultModal({
                      console.log('Casting with text:', castText)
                      console.log('Casting with image URL:', publicImageUrl)
                      
+                     // Try casting with the text-based image
                      await actions.composeCast({
                        text: castText,
                        embeds: publicImageUrl ? [publicImageUrl] : []

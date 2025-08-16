@@ -58,108 +58,86 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    // Create a simple text-based board representation
     const boardSize = 8;
-    const cellSize = 40;
-    const canvasWidth = boardSize * cellSize + 40; // Add padding
-    const canvasHeight = boardSize * cellSize + 80; // Add padding for title
+    let boardText = `${gameResult.gameWon ? '🎉 You Won!' : '💥 Game Over!'}\n\n`;
     
-    // Create a simple SVG representation of the board
-    let svgContent = `
-      <svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <style>
-            .cell { fill: #4a5568; stroke: #2d3748; stroke-width: 1; }
-            .revealed { fill: #e2e8f0; }
-            .bomb { fill: #e53e3e; }
-            .flag { fill: #f56565; }
-            .text { font-family: Arial, sans-serif; font-size: 12px; fill: #2d3748; text-anchor: middle; }
-            .title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #ffffff; text-anchor: middle; }
-            .username { font-family: Arial, sans-serif; font-size: 8px; fill: #ffffff; text-anchor: middle; }
-          </style>
-        </defs>
-        <rect width="${canvasWidth}" height="${canvasHeight}" fill="#1a202c"/>
-        <text x="${canvasWidth/2}" y="25" class="title">
-          ${gameResult.gameWon ? '🎉 You Won!' : '💥 Game Over!'}
-        </text>
-    `;
-
-         // Generate board cells
-     for (let row = 0; row < boardSize; row++) {
-       for (let col = 0; col < boardSize; col++) {
-         const cell = enhancedGrid[row][col];
-        const x = col * cellSize + 20;
-        const y = row * cellSize + 40;
-        
-        let cellClass = 'cell';
-        let cellContent = '';
+    // Add board representation
+    for (let row = 0; row < boardSize; row++) {
+      let rowText = '';
+      for (let col = 0; col < boardSize; col++) {
+        const cell = enhancedGrid[row][col];
         
         if (cell.isBomb) {
-          cellClass += ' bomb';
-          if (cell.follower && cell.follower.pfpUrl) {
-            // Add profile image
-            cellContent = `
-              <defs>
-                <clipPath id="circle-${row}-${col}">
-                  <circle cx="${x + cellSize/2}" cy="${y + cellSize/2}" r="${(cellSize-4)/2}"/>
-                </clipPath>
-              </defs>
-              <image 
-                href="${cell.follower.pfpUrl}" 
-                x="${x + 2}" 
-                y="${y + 2}" 
-                width="${cellSize-4}" 
-                height="${cellSize-4}"
-                clip-path="url(#circle-${row}-${col})"
-              />
-              <text x="${x + cellSize/2}" y="${y + cellSize + 8}" class="username">@${cell.follower.username}</text>
-            `;
+          if (cell.follower) {
+            // Use first letter of username
+            rowText += cell.follower.username.charAt(0).toUpperCase();
           } else {
-            cellContent = `<text x="${x + cellSize/2}" y="${y + cellSize/2 + 4}" class="text">💣</text>`;
+            rowText += '💣';
           }
         } else if (cell.isRevealed) {
-          cellClass += ' revealed';
           if (cell.neighborBombs > 0) {
-            cellContent = `<text x="${x + cellSize/2}" y="${y + cellSize/2 + 4}" class="text">${cell.neighborBombs}</text>`;
+            rowText += cell.neighborBombs.toString();
+          } else {
+            rowText += ' ';
           }
         } else if (cell.isFlagged) {
-          cellClass += ' flag';
-          cellContent = `<text x="${x + cellSize/2}" y="${y + cellSize/2 + 4}" class="text">🚩</text>`;
+          rowText += '🚩';
+        } else {
+          rowText += '⬜';
         }
-        
-        svgContent += `
-          <rect x="${x}" y="${y}" width="${cellSize-2}" height="${cellSize-2}" class="${cellClass}"/>
-          ${cellContent}
-        `;
+        rowText += ' ';
+      }
+      boardText += rowText.trim() + '\n';
+    }
+    
+    // Add follower information
+    const bombFollowers = enhancedGrid.flat()
+      .filter(cell => cell.isBomb && cell.follower)
+      .map(cell => cell.follower!);
+    
+    if (bombFollowers.length > 0) {
+      boardText += '\nBombs: ';
+      boardText += bombFollowers.map(f => `@${f.username}`).join(', ');
+    }
+
+    // Create a simple SVG that represents the text
+    const lines = boardText.split('\n');
+    let svgTextElements = '';
+    let y = 80;
+    
+    for (const line of lines) {
+      if (line.trim()) {
+        svgTextElements += `<text x="50" y="${y}" class="board">${line}</text>`;
+        y += 20;
       }
     }
     
-    svgContent += '</svg>';
+    const svgContent = `
+      <svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <style>
+            .text { font-family: monospace; font-size: 14px; fill: #ffffff; }
+            .title { font-family: Arial, sans-serif; font-size: 24px; font-weight: bold; fill: #ffffff; text-anchor: middle; }
+            .board { font-family: monospace; font-size: 16px; fill: #ffffff; }
+          </style>
+        </defs>
+        <rect width="600" height="400" fill="#1a202c"/>
+        <text x="300" y="40" class="title">${gameResult.gameWon ? '🎉 You Won!' : '💥 Game Over!'}</text>
+        ${svgTextElements}
+      </svg>
+    `;
     
     // Convert SVG to data URL for preview
     const dataUrl = `data:image/svg+xml;base64,${Buffer.from(svgContent).toString('base64')}`;
     
-    // Generate a unique ID for the image
-    const imageId = `board-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Store the SVG in our cache
-    const storeResponse = await fetch(`${request.nextUrl.origin}/api/board-image/${imageId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ svg: svgContent })
-    });
-    
-    let publicUrl = dataUrl; // fallback
-    if (storeResponse.ok) {
-      publicUrl = `${request.nextUrl.origin}/api/board-image/${imageId}`;
-    }
-    
+    // For now, we'll return the data URL directly
+    // In production, you'd convert this to a PNG/JPG using a service like Puppeteer or Cloudinary
     return NextResponse.json({
       success: true,
       imageDataUrl: dataUrl,
-      publicUrl: publicUrl,
-      message: 'Board image generated successfully'
+      publicUrl: dataUrl, // Use data URL for now
+      message: 'Board image generated successfully (text-based)'
     });
 
   } catch (error) {
