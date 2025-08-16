@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTRequest, MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
@@ -18,7 +17,6 @@ interface NFTMintButtonProps {
 }
 
 export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMintButtonProps) {
-  const { address } = useAccount()
   const { context, isEthProviderAvailable } = useFrame()
   const [isMinting, setIsMinting] = useState(false)
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
@@ -27,16 +25,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
 
   const handleMintNFT = async () => {
     console.log('Mint NFT clicked - Debug info:', {
-      address,
       isEthProviderAvailable,
       hasBoardImage: !!gameResult.boardImage,
       contextUser: context?.user
     })
-
-    if (!address) {
-      onMintError?.('Wallet not connected')
-      return
-    }
 
     if (!isEthProviderAvailable) {
       onMintError?.('Farcaster wallet not available')
@@ -52,20 +44,14 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Get user address - try Wagmi first, then Farcaster SDK
-      let userAddress = address
-      if (!userAddress) {
-        try {
-          const sdk = await import('@farcaster/miniapp-sdk')
-          const accounts = await sdk.default.wallet.ethProvider?.request({
-            method: 'eth_accounts'
-          })
-          userAddress = accounts?.[0]
-          console.log('Got address from Farcaster SDK:', userAddress)
-        } catch (e) {
-          console.error('Failed to get address from Farcaster SDK:', e)
-        }
-      }
+      // Get user address from Farcaster SDK
+      const sdk = await import('@farcaster/miniapp-sdk')
+      const accounts = await sdk.default.wallet.ethProvider?.request({
+        method: 'eth_accounts'
+      })
+      const userAddress = accounts?.[0]
+      
+      console.log('Got address from Farcaster SDK:', userAddress)
 
       if (!userAddress) {
         throw new Error('No wallet address available')
@@ -98,7 +84,6 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       const { transactionData } = result
 
       // Use Farcaster SDK wallet provider
-      const sdk = await import('@farcaster/miniapp-sdk')
       const ethProvider = sdk.default.wallet.ethProvider
       
       if (!ethProvider) {
@@ -204,7 +189,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       <div className="space-y-3">
       <button
         onClick={handleMintNFT}
-        disabled={isMinting || !address || !gameResult.boardImage}
+        disabled={isMinting || !isEthProviderAvailable || !gameResult.boardImage}
         className={getButtonStyle()}
       >
         {isMinting && (
@@ -213,13 +198,13 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         {getButtonText()}
       </button>
       
-      {!address && (
+      {!isEthProviderAvailable && (
         <p className="text-sm text-blue-400 text-center">
           🔗 Connecting wallet automatically...
         </p>
       )}
       
-      {address && !gameResult.boardImage && (
+      {isEthProviderAvailable && !gameResult.boardImage && (
         <p className="text-sm text-gray-400 text-center">
           Board image required for NFT minting
         </p>
