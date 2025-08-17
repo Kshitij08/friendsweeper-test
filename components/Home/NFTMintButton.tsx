@@ -60,27 +60,13 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Create minimal metadata to keep transaction size small
-      const metadata = {
-        name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
-        description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
-        image: 'https://friendsweeper-test.vercel.app/placeholder.png',
-        attributes: [
-          { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
-          { trait_type: "Followers", value: gameResult.followers.length }
-        ]
-      }
-
-      // Add killed by follower if game was lost
-      if (!gameResult.gameWon && gameResult.killedBy) {
-        metadata.attributes.push({
-          trait_type: "Killed By",
-          value: gameResult.killedBy.username || gameResult.killedBy.displayName || "Unknown"
-        })
-      }
-
-      // Use minimal metadata URI to minimize transaction size
-      const metadataUri = JSON.stringify(metadata)
+      // Create extremely minimal metadata to reduce transaction size
+      const timestamp = Date.now()
+      const result = gameResult.gameWon ? "W" : "L"
+      const followers = gameResult.followers.length
+      
+      // Use a very simple string format instead of JSON to minimize size
+      const metadataUri = `${result}-${followers}-${timestamp}`
 
       // Encode the mintNFT function call
       const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
@@ -106,16 +92,18 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('Transaction details:', {
         to: contractAddress,
         data: mintData.substring(0, 20) + '...',
-        gas: '0x493e0'
+        metadataUri: metadataUri,
+        metadataLength: metadataUri.length
       })
 
       // Use Farcaster SDK ethProvider directly as per EIP-1193 and Farcaster docs
+      // Let the wallet estimate gas automatically
       const txHash = await sdk.wallet.ethProvider.request({
         method: 'eth_sendTransaction',
         params: [{
           to: contractAddress as `0x${string}`,
           data: mintData,
-          gas: '0x493e0', // 300000 in hex
+          // Remove gas parameter to let wallet estimate automatically
         }]
       })
 
@@ -148,7 +136,15 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         success: true,
         tokenId: tokenId?.toString() || '0',
         transactionHash: txHash as string,
-        metadata: metadata
+        metadata: {
+          name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
+          description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
+          image: 'https://friendsweeper-test.vercel.app/placeholder.png',
+          attributes: [
+            { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
+            { trait_type: "Followers", value: gameResult.followers.length }
+          ]
+        }
       })
 
     } catch (error) {
