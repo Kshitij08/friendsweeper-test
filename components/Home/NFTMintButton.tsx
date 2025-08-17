@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
-import { MintNFTRequest, MintNFTResponse } from '@/types'
+import { MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
-import { useAccount, useSwitchChain } from 'wagmi'
+import { useAccount, useSwitchChain, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
 import { baseSepolia } from 'viem/chains'
+import { encodeFunctionData } from 'viem'
 
 interface NFTMintButtonProps {
   gameResult: {
@@ -22,11 +23,82 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const { context, isEthProviderAvailable } = useFrame()
   const { isConnected, address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
+  const { sendTransaction, data: hash, isPending, error: sendError } = useSendTransaction()
   
-  const [isMinting, setIsMinting] = useState(false)
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
   const [showMarketplace, setShowMarketplace] = useState(false)
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null)
+
+  // Wait for transaction receipt
+  const { data: receipt, isSuccess, isError } = useWaitForTransactionReceipt({
+    hash,
+  })
+
+  // Handle transaction success
+  useEffect(() => {
+    if (isSuccess && receipt && hash) {
+      console.log('Transaction confirmed:', hash)
+      
+      // Extract token ID from logs
+      let tokenId = null
+      const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
+      if (contractAddress) {
+        // Try to extract token ID from logs
+        for (const log of receipt.logs) {
+          try {
+            // Simple check for TransferSingle event
+            if (log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') {
+              // This is a TransferSingle event, extract token ID from topics
+              if (log.topics.length >= 4 && log.topics[3]) {
+                tokenId = BigInt(log.topics[3]).toString()
+                break
+              }
+            }
+          } catch (e) {
+            // Continue to next log
+          }
+        }
+      }
+
+      setMintStatus('success')
+      setMintedTokenId(tokenId || 'unknown')
+      
+      const mintResponse: MintNFTResponse = {
+        success: true,
+        tokenId: tokenId || 'unknown',
+        transactionHash: hash,
+        metadata: {
+          name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
+          description: gameResult.gameWon 
+            ? `A victorious Friendsweeper game where the player avoided all ${gameResult.followers.length} followers and won!`
+            : `A Friendsweeper game where the player was defeated by a follower.`,
+          image: gameResult.boardImage || '',
+          external_url: 'https://friendsweeper-test.vercel.app',
+          attributes: [
+            { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
+            { trait_type: "Followers Count", value: gameResult.followers.length },
+            { trait_type: "Game Type", value: "Friendsweeper" },
+            { trait_type: "Board Size", value: `${gameResult.grid.length}x${gameResult.grid[0]?.length || 0}` },
+            { trait_type: "Date", value: new Date().toISOString().split('T')[0] }
+          ]
+        },
+        imageUrl: gameResult.boardImage || ''
+      }
+      
+      onMintSuccess?.(mintResponse)
+      console.log('NFT minted successfully:', mintResponse)
+    }
+  }, [isSuccess, receipt, hash, gameResult, onMintSuccess])
+
+  // Handle transaction error
+  useEffect(() => {
+    if (isError || sendError) {
+      setMintStatus('error')
+      const errorMessage = sendError?.message || 'Transaction failed'
+      onMintError?.(errorMessage)
+      console.error('Transaction error:', sendError)
+    }
+  }, [isError, sendError, onMintError])
 
   const handleMintNFT = async () => {
     console.log('Mint NFT clicked - Debug info:', {
@@ -58,239 +130,70 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       return
     }
 
-    setIsMinting(true)
     setMintStatus('minting')
 
     try {
-      // Step 1: Prepare transaction data
-      const mintRequest: MintNFTRequest = {
-        gameResult,
-        userFid: context?.user?.fid?.toString(),
-        userAddress: address!
+      // Create a simple metadata URI for now
+      const metadata = {
+        name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
+        description: gameResult.gameWon 
+          ? `A victorious Friendsweeper game where the player avoided all ${gameResult.followers.length} followers and won!`
+          : `A Friendsweeper game where the player was defeated by a follower.`,
+        image: gameResult.boardImage,
+        external_url: 'https://friendsweeper-test.vercel.app',
+        attributes: [
+          { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
+          { trait_type: "Followers Count", value: gameResult.followers.length },
+          { trait_type: "Game Type", value: "Friendsweeper" },
+          { trait_type: "Board Size", value: `${gameResult.grid.length}x${gameResult.grid[0]?.length || 0}` },
+          { trait_type: "Date", value: new Date().toISOString().split('T')[0] }
+        ]
       }
 
-      console.log('Preparing transaction data...')
-      const response = await fetch('/api/mint-nft-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(mintRequest)
-      })
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to prepare transaction')
+      // Add killed by follower if game was lost
+      if (!gameResult.gameWon && gameResult.killedBy) {
+        metadata.attributes.push({
+          trait_type: "Killed By",
+          value: gameResult.killedBy.username || gameResult.killedBy.displayName || "Unknown"
+        })
       }
 
-      // Step 2: User signs and sends transaction using Farcaster SDK
-      console.log('User signing transaction...')
-      const { transactionData } = result
-
-      // Debug: Log the transaction data
-      console.log('Transaction data received:', {
-        to: transactionData.to,
-        data: transactionData.data?.substring(0, 20) + '...',
-        dataLength: transactionData.data?.length || 0,
-        gasLimit: transactionData.gasLimit,
-        gasPrice: transactionData.gasPrice,
-        maxFeePerGas: transactionData.maxFeePerGas,
-        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas
-      })
-
-      // Validate transaction data
-      if (!transactionData.to || !transactionData.data) {
-        throw new Error('Invalid transaction data: missing to address or data')
-      }
-
-      if (transactionData.data.length > 10000) {
-        console.warn('⚠️ Transaction data is very long:', transactionData.data.length, 'characters')
-      }
-
-      // Get Farcaster SDK
-      const sdk = await import('@farcaster/miniapp-sdk')
-      const ethProvider = sdk.default.wallet.ethProvider
+      // Create metadata URI (base64 encoded data URL)
+      const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`
       
-      if (!ethProvider) {
-        throw new Error('Farcaster wallet provider not available')
-      }
-
-      // Prepare transaction parameters
-      const txParams = {
-        to: transactionData.to,
-        data: transactionData.data,
-        gas: `0x${parseInt(transactionData.gasLimit || '300000').toString(16)}` as `0x${string}`,
-        maxFeePerGas: transactionData.maxFeePerGas ? `0x${parseInt(transactionData.maxFeePerGas).toString(16)}` as `0x${string}` : undefined,
-        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas ? `0x${parseInt(transactionData.maxPriorityFeePerGas).toString(16)}` as `0x${string}` : undefined
-      }
-
-      // Remove undefined values
-      Object.keys(txParams).forEach(key => {
-        if ((txParams as any)[key] === undefined) {
-          delete (txParams as any)[key]
-        }
-      })
-
-      console.log('Sending transaction with Farcaster SDK:', txParams)
-
-      // Try different approaches to send the transaction
-      let hash = null
-      
-      // Helper function to send transaction with timeout
-      const sendTransactionWithTimeout = async (params: any, timeoutMs: number = 30000): Promise<string> => {
-        return Promise.race([
-          ethProvider.request({
-            method: 'eth_sendTransaction',
-            params: [params]
-          }) as Promise<string>,
-          new Promise<string>((_, reject) => 
-            setTimeout(() => reject(new Error('Transaction timeout')), timeoutMs)
-          )
-        ])
-      }
-
-      // First, let's try to get the user's account to ensure wallet is ready
-      try {
-        console.log('Checking wallet connection...')
-        const accounts = await ethProvider.request({ method: 'eth_accounts' })
-        console.log('Connected accounts:', accounts)
-        
-        if (!accounts || accounts.length === 0) {
-          throw new Error('No accounts found - wallet not connected')
-        }
-      } catch (error) {
-        console.error('Wallet connection check failed:', error)
-        throw new Error('Wallet not properly connected')
-      }
-
-      try {
-        // Approach 1: Try with a much simpler transaction first
-        console.log('Trying with simplified parameters...')
-        const simpleParams = {
-          to: txParams.to,
-          data: txParams.data,
-          from: address // Add the from address explicitly
-        }
-        console.log('Simple params:', simpleParams)
-        
-        hash = await sendTransactionWithTimeout(simpleParams, 10000)
-        console.log('✅ Transaction sent successfully with simple params')
-      } catch (error) {
-        console.log('❌ Simple params failed:', error)
-        
-        try {
-          // Approach 2: Try with just the essential parameters
-          console.log('Trying with essential parameters...')
-          const essentialParams = {
-            to: txParams.to,
-            data: txParams.data
-          }
-          console.log('Essential params:', essentialParams)
-          
-          hash = await sendTransactionWithTimeout(essentialParams, 10000)
-          console.log('✅ Transaction sent successfully with essential params')
-        } catch (error2) {
-          console.log('❌ Essential params failed:', error2)
-          
-          // Approach 3: Try using a different method - personal_sendTransaction
-          try {
-            console.log('Trying with personal_sendTransaction...')
-            hash = await ethProvider.request({
-              method: 'personal_sendTransaction',
-              params: [{
-                to: txParams.to,
-                data: txParams.data
-              }, null] // password parameter
-            }) as string
-            console.log('✅ Transaction sent successfully with personal_sendTransaction')
-          } catch (error3) {
-            console.log('❌ personal_sendTransaction failed:', error3)
-            
-                         // Approach 4: Last resort - try with a different transaction format
-             try {
-               console.log('Trying with alternative transaction format...')
-               // Try with a different parameter structure
-               const altParams = {
-                 to: txParams.to,
-                 data: txParams.data,
-                 value: '0x0' // Add explicit value
-               }
-               console.log('Alternative params:', altParams)
-               
-               hash = await sendTransactionWithTimeout(altParams, 10000)
-               console.log('✅ Transaction sent successfully with alternative format')
-             } catch (error4) {
-               console.log('❌ Alternative format failed:', error4)
-               throw new Error('All transaction methods failed - wallet may not support this transaction type')
-             }
-          }
-        }
-      }
-
-      if (!hash) {
-        throw new Error('Transaction failed to send - no hash returned')
-      }
-
-      console.log('Transaction sent successfully:', hash)
-
-      // Step 3: Wait for transaction confirmation
-      console.log('Waiting for transaction confirmation...')
-      const { ethers } = await import('ethers')
-      const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org')
-      
-      const receipt = await provider.waitForTransaction(hash)
-      if (!receipt) {
-        throw new Error('Transaction receipt is null')
-      }
-      console.log('Transaction confirmed:', receipt.hash)
-
-      // Step 4: Extract token ID from logs
-      let tokenId = null
+      // Encode the mintNFT function call
       const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
-      if (contractAddress) {
-        const NFTContract = await import('@/lib/contracts/FriendsweeperNFT.json')
-        const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, provider)
-        
-        for (const log of receipt.logs) {
-          try {
-            const decodedLog = contract.interface.parseLog(log)
-            if (decodedLog && decodedLog.name === 'TransferSingle') {
-              tokenId = decodedLog.args.id.toString()
-              break
-            }
-          } catch (e) {
-            // Continue to next log
-          }
-        }
+      if (!contractAddress) {
+        throw new Error('NFT contract address not configured')
       }
 
-      setMintStatus('success')
-      setMintedTokenId(tokenId || 'unknown')
+      const mintData = encodeFunctionData({
+        abi: [{
+          inputs: [
+            { name: 'metadataURI', type: 'string' },
+            { name: 'amount', type: 'uint256' }
+          ],
+          name: 'mintNFT',
+          outputs: [{ name: '', type: 'uint256' }],
+          stateMutability: 'nonpayable',
+          type: 'function'
+        }],
+        args: [metadataUri, BigInt(1)]
+      })
+
+      console.log('Sending transaction with wagmi...')
       
-      const mintResponse: MintNFTResponse = {
-        success: true,
-        tokenId: tokenId || 'unknown',
-        transactionHash: hash,
-        metadata: result.metadata || {
-          name: 'Friendsweeper NFT',
-          description: 'A Friendsweeper game NFT',
-          image: '',
-          attributes: []
-        },
-        imageUrl: result.imageUrl || ''
-      }
-      
-      onMintSuccess?.(mintResponse)
-      console.log('NFT minted successfully:', mintResponse)
+      sendTransaction({
+        to: contractAddress as `0x${string}`,
+        data: mintData,
+        gas: BigInt(300000), // Conservative gas limit
+      })
 
     } catch (error) {
       setMintStatus('error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       onMintError?.(errorMessage)
-      console.error('Error minting NFT:', error)
-    } finally {
-      setIsMinting(false)
+      console.error('Error preparing transaction:', error)
     }
   }
 
@@ -299,9 +202,11 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       return 'Switch to Base Sepolia'
     }
     
+    if (isPending) {
+      return 'Sign Transaction...'
+    }
+    
     switch (mintStatus) {
-      case 'minting':
-        return 'Sign Transaction...'
       case 'success':
         return 'NFT Minted! 🎉'
       case 'error':
@@ -316,6 +221,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     
     if (chainId !== baseSepolia.id) {
       return `${baseStyle} bg-yellow-600 hover:bg-yellow-700 text-white`
+    }
+    
+    if (isPending) {
+      return `${baseStyle} bg-blue-600 hover:bg-blue-700 text-white`
     }
     
     switch (mintStatus) {
@@ -339,74 +248,74 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   return (
     <>
       <div className="space-y-3">
-      <button
-        onClick={handleButtonClick}
-        disabled={isMinting || !isEthProviderAvailable || !gameResult.boardImage || !isConnected}
-        className={getButtonStyle()}
-      >
-        {isMinting && (
-          <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+        <button
+          onClick={handleButtonClick}
+          disabled={isPending || !isEthProviderAvailable || !gameResult.boardImage || !isConnected}
+          className={getButtonStyle()}
+        >
+          {isPending && (
+            <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+          )}
+          {getButtonText()}
+        </button>
+        
+        {!isEthProviderAvailable && (
+          <p className="text-sm text-blue-400 text-center">
+            🔗 Connecting wallet automatically...
+          </p>
         )}
-        {getButtonText()}
-      </button>
-      
-      {!isEthProviderAvailable && (
-        <p className="text-sm text-blue-400 text-center">
-          🔗 Connecting wallet automatically...
-        </p>
-      )}
-      
-      {!isConnected && isEthProviderAvailable && (
-        <p className="text-sm text-yellow-400 text-center">
-          🔗 Please connect your wallet first
-        </p>
-      )}
-      
-      {isConnected && chainId !== baseSepolia.id && (
-        <p className="text-sm text-yellow-400 text-center">
-          ⚠️ Please switch to Base Sepolia network
-        </p>
-      )}
-      
-      {isConnected && chainId === baseSepolia.id && !gameResult.boardImage && (
-        <p className="text-sm text-gray-400 text-center">
-          Board image required for NFT minting
-        </p>
-      )}
-      
-                   {mintStatus === 'success' && (
-               <div className="text-center space-y-3">
-                 <p className="text-sm text-green-400">
-                   Your game board has been minted as an NFT! 🎉
-                 </p>
-                 <p className="text-xs text-gray-400">
-                   Check your wallet to view your NFT
-                 </p>
-                 {mintedTokenId && (
-                   <button
-                     onClick={() => setShowMarketplace(true)}
-                     className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-                   >
-                     🏪 Open Marketplace
-                   </button>
-                 )}
-               </div>
-             )}
-      
-      {mintStatus === 'error' && (
-        <p className="text-sm text-red-400 text-center">
-          Failed to mint NFT. Please try again.
-        </p>
-               )}
-       </div>
+        
+        {!isConnected && isEthProviderAvailable && (
+          <p className="text-sm text-yellow-400 text-center">
+            🔗 Please connect your wallet first
+          </p>
+        )}
+        
+        {isConnected && chainId !== baseSepolia.id && (
+          <p className="text-sm text-yellow-400 text-center">
+            ⚠️ Please switch to Base Sepolia network
+          </p>
+        )}
+        
+        {isConnected && chainId === baseSepolia.id && !gameResult.boardImage && (
+          <p className="text-sm text-gray-400 text-center">
+            Board image required for NFT minting
+          </p>
+        )}
+        
+        {mintStatus === 'success' && (
+          <div className="text-center space-y-3">
+            <p className="text-sm text-green-400">
+              Your game board has been minted as an NFT! 🎉
+            </p>
+            <p className="text-xs text-gray-400">
+              Check your wallet to view your NFT
+            </p>
+            {mintedTokenId && (
+              <button
+                onClick={() => setShowMarketplace(true)}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                🏪 Open Marketplace
+              </button>
+            )}
+          </div>
+        )}
+        
+        {mintStatus === 'error' && (
+          <p className="text-sm text-red-400 text-center">
+            Failed to mint NFT. Please try again.
+          </p>
+        )}
+      </div>
 
-       {/* Marketplace Modal */}
-       {showMarketplace && mintedTokenId && (
-         <Marketplace
-           tokenId={mintedTokenId}
-           onClose={() => setShowMarketplace(false)}
-         />
-       )}
-     </>
-   )
- }
+      {/* Marketplace Modal */}
+      {showMarketplace && mintedTokenId && (
+        <Marketplace
+          tokenId={mintedTokenId}
+          onClose={() => setShowMarketplace(false)}
+        />
+      )}
+    </>
+  )
+}
