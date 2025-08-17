@@ -137,47 +137,80 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       // Try different approaches to send the transaction
       let hash = null
       
+      // Helper function to send transaction with timeout
+      const sendTransactionWithTimeout = async (params: any, timeoutMs: number = 30000): Promise<string> => {
+        return Promise.race([
+          ethProvider.request({
+            method: 'eth_sendTransaction',
+            params: [params]
+          }) as Promise<string>,
+          new Promise<string>((_, reject) => 
+            setTimeout(() => reject(new Error('Transaction timeout')), timeoutMs)
+          )
+        ])
+      }
+
       try {
-        // Approach 1: Full parameters
-        console.log('Trying with full parameters...')
-        hash = await ethProvider.request({
-          method: 'eth_sendTransaction',
-          params: [txParams]
-        })
-        console.log('✅ Transaction sent successfully with full parameters')
+        // Approach 1: Minimal parameters with proper formatting
+        console.log('Trying with minimal parameters...')
+        const minimalParams = {
+          to: txParams.to,
+          data: txParams.data,
+          gas: txParams.gas
+        }
+        console.log('Minimal params:', minimalParams)
+        
+        hash = await sendTransactionWithTimeout(minimalParams, 15000)
+        console.log('✅ Transaction sent successfully with minimal params')
       } catch (error) {
-        console.log('❌ Full parameters failed, trying minimal params:', error)
+        console.log('❌ Minimal params failed:', error)
         
         try {
-          // Approach 2: Minimal parameters
-          const minimalParams = {
-            to: txParams.to,
-            data: txParams.data,
-            gas: txParams.gas
-          }
-          console.log('Trying minimal params:', minimalParams)
-          
-          hash = await ethProvider.request({
-            method: 'eth_sendTransaction',
-            params: [minimalParams]
-          })
-          console.log('✅ Transaction sent successfully with minimal params')
-        } catch (error2) {
-          console.log('❌ Minimal params failed, trying basic params:', error2)
-          
-          // Approach 3: Basic parameters
+          // Approach 2: Basic parameters (no gas)
+          console.log('Trying with basic parameters...')
           const basicParams = {
             to: txParams.to,
             data: txParams.data
           }
-          console.log('Trying basic params:', basicParams)
+          console.log('Basic params:', basicParams)
           
-          hash = await ethProvider.request({
-            method: 'eth_sendTransaction',
-            params: [basicParams]
-          })
+          hash = await sendTransactionWithTimeout(basicParams, 15000)
           console.log('✅ Transaction sent successfully with basic params')
+        } catch (error2) {
+          console.log('❌ Basic params failed:', error2)
+          
+          try {
+            // Approach 3: Use gasPrice instead of maxFeePerGas
+            console.log('Trying with gasPrice...')
+            const gasPriceParams = {
+              to: txParams.to,
+              data: txParams.data,
+              gas: txParams.gas,
+              gasPrice: `0x${parseInt(transactionData.gasPrice || '1000000').toString(16)}` as `0x${string}`
+            }
+            console.log('GasPrice params:', gasPriceParams)
+            
+            hash = await sendTransactionWithTimeout(gasPriceParams, 15000)
+            console.log('✅ Transaction sent successfully with gasPrice')
+          } catch (error3) {
+            console.log('❌ GasPrice params failed:', error3)
+            
+            // Approach 4: Last resort - just to and data
+            console.log('Trying with just to and data...')
+            const lastResortParams = {
+              to: txParams.to,
+              data: txParams.data
+            }
+            console.log('Last resort params:', lastResortParams)
+            
+            hash = await sendTransactionWithTimeout(lastResortParams, 15000)
+            console.log('✅ Transaction sent successfully with last resort params')
+          }
         }
+      }
+
+      if (!hash) {
+        throw new Error('Transaction failed to send - no hash returned')
       }
 
       console.log('Transaction sent successfully:', hash)
