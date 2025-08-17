@@ -77,7 +77,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         metadata: {
           name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
           description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
-          image: gameResult.boardImage,
+          image: gameResult.boardImage || 'https://friendsweeper-test.vercel.app/placeholder.png',
           attributes: [
             { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
             { trait_type: "Followers", value: gameResult.followers.length }
@@ -126,7 +126,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       const metadata = {
         name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
         description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
-        image: gameResult.boardImage,
+        image: gameResult.boardImage || 'https://friendsweeper-test.vercel.app/placeholder.png',
         attributes: [
           { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
           { trait_type: "Followers", value: gameResult.followers.length }
