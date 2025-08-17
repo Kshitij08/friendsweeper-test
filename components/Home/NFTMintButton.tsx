@@ -58,20 +58,14 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Create a simple metadata URI without the large image data
+      // Create extremely minimal metadata to keep transaction size small
       const metadata = {
-        name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
-        description: gameResult.gameWon
-          ? `A victorious Friendsweeper game where the player avoided all ${gameResult.followers.length} followers and won!`
-          : `A Friendsweeper game where the player was defeated by a follower.`,
-        image: gameResult.boardImage, // This will be the uploaded image URL
-        external_url: 'https://friendsweeper-test.vercel.app',
+        name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
+        description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
+        image: 'https://friendsweeper-test.vercel.app/placeholder.png', // Minimal placeholder
         attributes: [
           { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
-          { trait_type: "Followers Count", value: gameResult.followers.length },
-          { trait_type: "Game Type", value: "Friendsweeper" },
-          { trait_type: "Board Size", value: `${gameResult.grid.length}x${gameResult.grid[0]?.length || 0}` },
-          { trait_type: "Date", value: new Date().toISOString().split('T')[0] }
+          { trait_type: "Followers", value: gameResult.followers.length }
         ]
       }
 
@@ -83,7 +77,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         })
       }
 
-      // Use a simple string instead of base64 encoded data to reduce transaction size
+      // Use minimal metadata URI to minimize transaction size
       const metadataUri = JSON.stringify(metadata)
 
       // Encode the mintNFT function call
