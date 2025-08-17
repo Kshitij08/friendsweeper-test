@@ -119,10 +119,59 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       // Debug: Log the final transaction parameters
       console.log('Sending transaction with params:', txParams)
 
-      const hash = await ethProvider.request({
-        method: 'eth_sendTransaction',
-        params: [txParams]
-      })
+      // Try different approaches to send the transaction
+      let hash = null
+      
+      try {
+        // Approach 1: Use eth_sendTransaction with hex gas values
+        const txParamsHex = {
+          ...txParams,
+          gas: txParams.gas ? `0x${parseInt(txParams.gas).toString(16)}` as `0x${string}` : undefined,
+          maxFeePerGas: txParams.maxFeePerGas ? `0x${parseInt(txParams.maxFeePerGas).toString(16)}` as `0x${string}` : undefined,
+          maxPriorityFeePerGas: txParams.maxPriorityFeePerGas ? `0x${parseInt(txParams.maxPriorityFeePerGas).toString(16)}` as `0x${string}` : undefined
+        }
+        
+        console.log('Trying with hex gas values:', txParamsHex)
+        
+        hash = await ethProvider.request({
+          method: 'eth_sendTransaction',
+          params: [txParamsHex]
+        })
+        
+        console.log('✅ Transaction sent successfully with hex values')
+        
+      } catch (error) {
+        console.log('❌ Hex approach failed, trying decimal values:', error)
+        
+        try {
+          // Approach 2: Use decimal values
+          hash = await ethProvider.request({
+            method: 'eth_sendTransaction',
+            params: [txParams]
+          })
+          
+          console.log('✅ Transaction sent successfully with decimal values')
+          
+        } catch (error2) {
+          console.log('❌ Decimal approach failed, trying minimal params:', error2)
+          
+          // Approach 3: Minimal parameters
+          const minimalParams = {
+            to: txParams.to,
+            data: txParams.data,
+            gas: txParams.gas
+          }
+          
+          console.log('Trying minimal params:', minimalParams)
+          
+          hash = await ethProvider.request({
+            method: 'eth_sendTransaction',
+            params: [minimalParams]
+          })
+          
+          console.log('✅ Transaction sent successfully with minimal params')
+        }
+      }
 
       console.log('Transaction sent:', hash)
 
