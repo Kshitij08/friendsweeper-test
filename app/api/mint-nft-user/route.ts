@@ -9,6 +9,11 @@ export async function POST(request: NextRequest) {
     const contractAddress = process.env.NFT_CONTRACT_ADDRESS
     const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL
 
+    console.log('Environment check:', {
+      contractAddress,
+      rpcUrl: rpcUrl ? 'SET' : 'NOT SET'
+    })
+
     if (!contractAddress || !rpcUrl) {
       return NextResponse.json(
         { success: false, error: 'Missing required environment variables' },
@@ -105,6 +110,12 @@ export async function POST(request: NextRequest) {
     const metadataUri = `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString('base64')}`
     
     // Encode the mintNFT function call (public function)
+    console.log('Calling mintNFT function with:', {
+      contractAddress,
+      metadataUriLength: metadataUri.length,
+      amount: 1
+    })
+    
     const mintData = contract.interface.encodeFunctionData('mintNFT', [
       metadataUri, // metadata URI
       BigInt(1) // amount
