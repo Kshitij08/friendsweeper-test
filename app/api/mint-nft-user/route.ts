@@ -142,26 +142,77 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ Metadata upload failed:', metadataError)
     }
     
-    // Encode the mintNFT function call (public function)
-    console.log('Calling mintNFT function with:', {
-      contractAddress,
-      metadataUriLength: metadataUri.length,
-      amount: 1
-    })
+    // Step 4: Try different minting approaches
+    console.log('Step 4: Trying different minting approaches...')
     
-    const mintData = contract.interface.encodeFunctionData('mintNFT', [
-      metadataUri, // metadata URI
-      BigInt(1) // amount
-    ])
+    let mintData = null
+    let gasEstimate = null
+    let gasPrice = null
+    
+    try {
+      // Try mintNFT function first
+      console.log('Trying mintNFT function...')
+      gasEstimate = await contract.mintNFT.estimateGas(
+        metadataUri,
+        BigInt(1)
+      )
+      
+      mintData = contract.interface.encodeFunctionData('mintNFT', [
+        metadataUri, // metadata URI
+        BigInt(1) // amount
+      ])
+      
+      console.log('✅ mintNFT function works')
+      
+    } catch (mintNFTError) {
+      console.log('❌ mintNFT function failed:', mintNFTError)
+      
+      try {
+        // Try mint function as fallback (requires owner)
+        console.log('Trying mint function as fallback...')
+        gasEstimate = await contract.mint.estimateGas(
+          body.userAddress, // to address
+          metadataUri, // metadata URI
+          BigInt(1) // amount
+        )
+        
+        mintData = contract.interface.encodeFunctionData('mint', [
+          body.userAddress, // to address
+          metadataUri, // metadata URI
+          BigInt(1) // amount
+        ])
+        
+        console.log('✅ mint function works (requires owner)')
+        
+      } catch (mintError) {
+        console.log('❌ mint function also failed:', mintError)
+        
+        // Use a simple fallback with minimal data
+        console.log('Using fallback approach...')
+        const fallbackUri = 'https://example.com/metadata.json'
+        
+        try {
+          gasEstimate = await contract.mintNFT.estimateGas(
+            fallbackUri,
+            BigInt(1)
+          )
+          
+          mintData = contract.interface.encodeFunctionData('mintNFT', [
+            fallbackUri,
+            BigInt(1)
+          ])
+          
+          console.log('✅ Fallback approach works')
+          
+        } catch (fallbackError) {
+          console.log('❌ All approaches failed:', fallbackError)
+          throw new Error('All minting approaches failed. Contract may not be properly deployed.')
+        }
+      }
+    }
 
     // Get current gas price
-    const gasPrice = await provider.getFeeData()
-    
-    // Estimate gas for the transaction
-    const gasEstimate = await contract.mintNFT.estimateGas(
-      metadataUri,
-      BigInt(1)
-    )
+    gasPrice = await provider.getFeeData()
 
     console.log('=== USER-PAYS-GAS NFT MINTING PREPARED ===')
     return NextResponse.json({

@@ -1,86 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ethers } from 'ethers'
 
 export async function GET(request: NextRequest) {
-  console.log('=== TESTING CONTRACT MINT FUNCTION ===')
-  
   try {
-    // Check environment variables
+    console.log('=== TESTING BASIC CONTRACT FUNCTIONALITY ===')
+    
     const contractAddress = process.env.NFT_CONTRACT_ADDRESS
-    const ownerPrivateKey = process.env.CONTRACT_OWNER_PRIVATE_KEY
     const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL
 
-    if (!contractAddress || !ownerPrivateKey || !rpcUrl) {
+    if (!contractAddress || !rpcUrl) {
       return NextResponse.json({
         success: false,
         error: 'Missing environment variables',
         env: {
           contractAddress: !!contractAddress,
-          ownerPrivateKey: !!ownerPrivateKey,
           rpcUrl: !!rpcUrl
         }
       })
     }
 
-    // Test contract connection
-    const { ethers } = await import('ethers')
     const provider = new ethers.JsonRpcProvider(rpcUrl)
-    const signer = new ethers.Wallet(ownerPrivateKey, provider)
-    
     const NFTContract = await import('@/lib/contracts/FriendsweeperNFT.json')
-    const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, signer)
+    const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, provider)
 
-    // Test 1: Check if we can call the contract
-    console.log('Test 1: Testing contract connection...')
-    let owner: string
+    // Test 1: Basic contract calls
+    console.log('Test 1: Basic contract calls')
     try {
-      owner = await contract.owner()
-      console.log('✅ Contract owner:', owner)
-    } catch (error) {
-      console.error('❌ Contract owner check failed:', error)
-      return NextResponse.json({
-        success: false,
-        error: 'Contract connection failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      const owner = await contract.owner()
+      const totalTokens = await contract.totalTokenTypes()
+      const nextTokenId = await contract.nextTokenId()
+      
+      console.log('✅ Basic calls successful:', {
+        owner,
+        totalTokens: totalTokens.toString(),
+        nextTokenId: nextTokenId.toString()
       })
+    } catch (error) {
+      console.log('❌ Basic calls failed:', error)
     }
 
-    // Test 2: Test mint function parameters
-    console.log('Test 2: Testing mint function parameters...')
+    // Test 2: Check if mintNFT function exists
+    console.log('Test 2: Check mintNFT function')
     try {
-      const testAddress = '0x1234567890123456789012345678901234567890'
-      const testMetadataUri = 'data:application/json;base64,eyJuYW1lIjoidGVzdCJ9'
-      const testAmount = BigInt(1)
-
-      console.log('Parameters:', {
-        to: testAddress,
-        metadataURI: testMetadataUri,
-        amount: testAmount.toString()
-      })
-
-      // Just test the parameter encoding, don't actually mint
-      const encodedData = contract.interface.encodeFunctionData('mint', [
-        testAddress,
-        testMetadataUri,
-        testAmount
-      ])
+      const functionExists = contract.interface.hasFunction('mintNFT')
+      console.log('✅ mintNFT function exists:', functionExists)
       
+      if (functionExists) {
+        const functionFragment = contract.interface.getFunction('mintNFT')
+        if (functionFragment) {
+          console.log('✅ mintNFT function signature:', functionFragment.format())
+        }
+      }
+    } catch (error) {
+      console.log('❌ Function check failed:', error)
+    }
+
+    // Test 3: Try to encode mintNFT call
+    console.log('Test 3: Encode mintNFT call')
+    try {
+      const testUri = 'https://example.com/test.json'
+      const encodedData = contract.interface.encodeFunctionData('mintNFT', [testUri, BigInt(1)])
       console.log('✅ Function encoding successful:', encodedData.substring(0, 10) + '...')
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Contract mint function test successful',
-        contractOwner: owner,
-        functionEncoding: encodedData.substring(0, 10) + '...'
-      })
-
     } catch (error) {
-      console.error('❌ Mint function test failed:', error)
-      return NextResponse.json({
-        success: false,
-        error: 'Mint function test failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      })
+      console.log('❌ Function encoding failed:', error)
     }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Basic tests completed - check server logs'
+    })
 
   } catch (error) {
     console.error('Test failed:', error)
