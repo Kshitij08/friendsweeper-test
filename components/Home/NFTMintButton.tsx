@@ -60,13 +60,8 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Create extremely minimal metadata to reduce transaction size
-      const timestamp = Date.now()
-      const result = gameResult.gameWon ? "W" : "L"
-      const followers = gameResult.followers.length
-      
-      // Use a very simple string format instead of JSON to minimize size
-      const metadataUri = `${result}-${followers}-${timestamp}`
+      // Use the absolute minimal metadata possible
+      const metadataUri = "test"
 
       // Encode the mintNFT function call
       const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
@@ -92,22 +87,32 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('Transaction details:', {
         to: contractAddress,
         data: mintData.substring(0, 20) + '...',
+        dataLength: mintData.length,
         metadataUri: metadataUri,
-        metadataLength: metadataUri.length
+        metadataLength: metadataUri.length,
+        ethProviderAvailable: !!sdk.wallet.ethProvider
       })
 
+      console.log('About to call ethProvider.request...')
+
       // Use Farcaster SDK ethProvider directly as per EIP-1193 and Farcaster docs
-      // Let the wallet estimate gas automatically
-      const txHash = await sdk.wallet.ethProvider.request({
+      // Add timeout to prevent hanging
+      const txPromise = sdk.wallet.ethProvider.request({
         method: 'eth_sendTransaction',
         params: [{
           to: contractAddress as `0x${string}`,
           data: mintData,
-          // Remove gas parameter to let wallet estimate automatically
         }]
       })
 
-      console.log('Transaction sent:', txHash)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Transaction timeout after 30 seconds')), 30000)
+      })
+
+      const txHash = await Promise.race([txPromise, timeoutPromise])
+
+      console.log('Transaction sent successfully:', txHash)
+      console.log('Transaction hash type:', typeof txHash)
 
       // Wait for transaction confirmation using ethers
       const ethers = await import('ethers')
