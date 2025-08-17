@@ -67,6 +67,27 @@ contract FriendsweeperNFT is ERC1155, ERC2981, Ownable {
     }
     
     /**
+     * @dev Public mint function that allows users to mint their own NFTs
+     * @param metadataURI The metadata URI for the NFT
+     * @param amount The amount to mint (usually 1 for unique NFTs)
+     * @return The ID of the newly minted NFT
+     */
+    function mintNFT(string memory metadataURI, uint256 amount) public returns (uint256) {
+        require(bytes(metadataURI).length > 0, "Metadata URI cannot be empty");
+        require(amount > 0, "Amount must be greater than 0");
+        
+        _tokenIds++;
+        uint256 newTokenId = _tokenIds;
+        
+        _mint(msg.sender, newTokenId, amount, "");
+        _setTokenURI(newTokenId, metadataURI);
+        
+        emit NFTMinted(msg.sender, newTokenId, metadataURI, amount);
+        
+        return newTokenId;
+    }
+    
+    /**
      * @dev Batch mints multiple NFTs
      * @param to The address that will own the minted NFTs
      * @param metadataURIs Array of metadata URIs

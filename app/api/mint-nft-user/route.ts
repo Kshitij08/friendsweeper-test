@@ -104,9 +104,8 @@ export async function POST(request: NextRequest) {
     // Create metadata URI
     const metadataUri = `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString('base64')}`
     
-    // Encode the mint function call
-    const mintData = contract.interface.encodeFunctionData('mint', [
-      body.userAddress, // to address
+    // Encode the mintNFT function call (public function)
+    const mintData = contract.interface.encodeFunctionData('mintNFT', [
       metadataUri, // metadata URI
       BigInt(1) // amount
     ])
@@ -115,8 +114,7 @@ export async function POST(request: NextRequest) {
     const gasPrice = await provider.getFeeData()
     
     // Estimate gas for the transaction
-    const gasEstimate = await contract.mint.estimateGas(
-      body.userAddress,
+    const gasEstimate = await contract.mintNFT.estimateGas(
       metadataUri,
       BigInt(1)
     )
