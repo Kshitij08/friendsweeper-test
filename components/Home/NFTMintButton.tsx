@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
-import { useAccount, useSwitchChain, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useSwitchChain } from 'wagmi'
 import { baseSepolia } from 'viem/chains'
 import { encodeFunctionData } from 'viem'
+import sdk from '@farcaster/miniapp-sdk'
 
 interface NFTMintButtonProps {
   gameResult: {
@@ -20,108 +21,24 @@ interface NFTMintButtonProps {
 }
 
 export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMintButtonProps) {
-  const { context, isEthProviderAvailable } = useFrame()
-  const { isConnected, address, chainId } = useAccount()
-  const { switchChain } = useSwitchChain()
-  const { data: hash, sendTransaction, isPending, error: sendError } = useSendTransaction()
-  
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
+  const [mintedTokenId, setMintedTokenId] = useState<number | null>(null)
   const [showMarketplace, setShowMarketplace] = useState(false)
-  const [mintedTokenId, setMintedTokenId] = useState<string | null>(null)
 
-  // Wait for transaction receipt
-  const { data: receipt, isSuccess, isError } = useWaitForTransactionReceipt({
-    hash,
-  })
+  const { isEthProviderAvailable, context } = useFrame()
+  const { isConnected, chainId } = useAccount()
+  const { switchChain } = useSwitchChain()
 
-  // Handle transaction success
+  // Handle chain switching if needed
   useEffect(() => {
-    if (isSuccess && receipt && hash) {
-      console.log('Transaction confirmed:', hash)
-      
-      // Extract token ID from logs
-      let tokenId = null
-      const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
-      if (contractAddress) {
-        // Try to extract token ID from logs
-        for (const log of receipt.logs) {
-          try {
-            // Simple check for TransferSingle event
-            if (log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') {
-              // This is a TransferSingle event, extract token ID from topics
-              if (log.topics.length >= 4 && log.topics[3]) {
-                tokenId = BigInt(log.topics[3]).toString()
-                break
-              }
-            }
-          } catch (e) {
-            // Continue to next log
-          }
-        }
-      }
-
-      setMintStatus('success')
-      setMintedTokenId(tokenId || 'unknown')
-      
-      const mintResponse: MintNFTResponse = {
-        success: true,
-        tokenId: tokenId || 'unknown',
-        transactionHash: hash,
-        metadata: {
-          name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
-          description: gameResult.gameWon 
-            ? `A victorious Friendsweeper game where the player avoided all ${gameResult.followers.length} followers and won!`
-            : `A Friendsweeper game where the player was defeated by a follower.`,
-          image: gameResult.boardImage || '',
-          external_url: 'https://friendsweeper-test.vercel.app',
-          attributes: [
-            { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
-            { trait_type: "Followers Count", value: gameResult.followers.length },
-            { trait_type: "Game Type", value: "Friendsweeper" },
-            { trait_type: "Board Size", value: `${gameResult.grid.length}x${gameResult.grid[0]?.length || 0}` },
-            { trait_type: "Date", value: new Date().toISOString().split('T')[0] }
-          ]
-        },
-        imageUrl: gameResult.boardImage || ''
-      }
-      
-      onMintSuccess?.(mintResponse)
-      console.log('NFT minted successfully:', mintResponse)
+    if (isConnected && chainId !== baseSepolia.id) {
+      switchChain({ chainId: baseSepolia.id })
     }
-  }, [isSuccess, receipt, hash, gameResult, onMintSuccess])
-
-  // Handle transaction error
-  useEffect(() => {
-    if (isError || sendError) {
-      setMintStatus('error')
-      const errorMessage = sendError?.message || 'Transaction failed'
-      onMintError?.(errorMessage)
-      console.error('Transaction error:', sendError)
-    }
-  }, [isError, sendError, onMintError])
+  }, [isConnected, chainId, switchChain])
 
   const handleMintNFT = async () => {
-    console.log('Mint NFT clicked - Debug info:', {
-      isEthProviderAvailable,
-      isConnected,
-      chainId,
-      hasBoardImage: !!gameResult.boardImage,
-      contextUser: context?.user
-    })
-
-    if (!isEthProviderAvailable) {
-      onMintError?.('Farcaster wallet not available')
-      return
-    }
-
-    if (!isConnected) {
-      onMintError?.('Wallet not connected')
-      return
-    }
-
-    if (chainId !== baseSepolia.id) {
-      console.log('Switching to Base Sepolia...')
-      switchChain({ chainId: baseSepolia.id })
+    if (!isEthProviderAvailable || !isConnected || chainId !== baseSepolia.id) {
+      onMintError?.('Wallet not connected or wrong network')
       return
     }
 
@@ -130,13 +47,21 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       return
     }
 
+    console.log('Mint NFT clicked - Debug info:', {
+      isEthProviderAvailable,
+      isConnected,
+      chainId,
+      hasBoardImage: !!gameResult.boardImage,
+      contextUser: context?.user
+    })
+
     setMintStatus('minting')
 
     try {
       // Create a simple metadata URI for now
       const metadata = {
         name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
-        description: gameResult.gameWon 
+        description: gameResult.gameWon
           ? `A victorious Friendsweeper game where the player avoided all ${gameResult.followers.length} followers and won!`
           : `A Friendsweeper game where the player was defeated by a follower.`,
         image: gameResult.boardImage,
@@ -160,7 +85,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
 
       // Create metadata URI (base64 encoded data URL)
       const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`
-      
+
       // Encode the mintNFT function call
       const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
       if (!contractAddress) {
@@ -181,147 +106,143 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         args: [metadataUri, BigInt(1)]
       })
 
-      console.log('Sending transaction with wagmi...')
+      console.log('Sending transaction with Farcaster SDK...')
       console.log('Transaction details:', {
         to: contractAddress,
         data: mintData.substring(0, 20) + '...',
         gas: '300000'
       })
 
-      // Use the same pattern as WalletActions
-      sendTransaction({
-        to: contractAddress as `0x${string}`,
-        data: mintData,
-        gas: BigInt(300000), // Conservative gas limit
+      // Use Farcaster SDK directly as per official documentation
+      const txHash = await sdk.wallet.ethProvider.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          to: contractAddress as `0x${string}`,
+          data: mintData,
+          gas: '0x493e0', // 300000 in hex
+        }]
+      })
+
+      console.log('Transaction sent:', txHash)
+
+      // Wait for transaction confirmation
+      const provider = new (await import('ethers')).JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL)
+      const receipt = await provider.waitForTransaction(txHash as string)
+      
+      console.log('Transaction confirmed:', receipt)
+
+      // Extract token ID from TransferSingle event
+      let tokenId: number | null = null
+      if (receipt) {
+        for (const log of receipt.logs) {
+          if (log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') { // TransferSingle event
+            if (log.topics.length >= 4 && log.topics[3]) {
+              tokenId = Number(BigInt(log.topics[3]))
+              break
+            }
+          }
+        }
+      }
+
+      setMintedTokenId(tokenId)
+      setMintStatus('success')
+
+      onMintSuccess?.({
+        success: true,
+        tokenId: tokenId?.toString() || '0',
+        transactionHash: txHash as string,
+        metadata: metadata
       })
 
     } catch (error) {
       setMintStatus('error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       onMintError?.(errorMessage)
-      console.error('Error preparing transaction:', error)
+      console.error('NFT minting failed:', error)
     }
   }
 
-  const getButtonText = () => {
-    if (chainId !== baseSepolia.id) {
-      return 'Switch to Base Sepolia'
-    }
-    
-    if (isPending) {
-      return 'Sign Transaction...'
-    }
-    
-    switch (mintStatus) {
-      case 'success':
-        return 'NFT Minted! 🎉'
-      case 'error':
-        return 'Mint Failed - Try Again'
-      default:
-        return 'Mint as NFT 🖼️ (Pay Gas)'
-    }
+  const handleViewMarketplace = () => {
+    setShowMarketplace(true)
   }
 
-  const getButtonStyle = () => {
-    const baseStyle = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-    
-    if (chainId !== baseSepolia.id) {
-      return `${baseStyle} bg-yellow-600 hover:bg-yellow-700 text-white`
-    }
-    
-    if (isPending) {
-      return `${baseStyle} bg-blue-600 hover:bg-blue-700 text-white`
-    }
-    
-    switch (mintStatus) {
-      case 'success':
-        return `${baseStyle} bg-green-600 hover:bg-green-700 text-white`
-      case 'error':
-        return `${baseStyle} bg-red-600 hover:bg-red-700 text-white`
-      default:
-        return `${baseStyle} bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl`
-    }
+  const handleCloseMarketplace = () => {
+    setShowMarketplace(false)
   }
 
-  const handleButtonClick = () => {
-    if (chainId !== baseSepolia.id) {
-      switchChain({ chainId: baseSepolia.id })
-    } else {
-      handleMintNFT()
-    }
+  if (showMarketplace) {
+    return <Marketplace onClose={handleCloseMarketplace} />
   }
 
   return (
-    <>
-      <div className="space-y-3">
-        <button
-          onClick={handleButtonClick}
-          disabled={isPending || !isEthProviderAvailable || !gameResult.boardImage || !isConnected}
-          className={getButtonStyle()}
-        >
-          {isPending && (
-            <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-          )}
-          {getButtonText()}
-        </button>
-        
-        {!isEthProviderAvailable && (
-          <p className="text-sm text-blue-400 text-center">
-            🔗 Connecting wallet automatically...
-          </p>
-        )}
-        
-        {!isConnected && isEthProviderAvailable && (
-          <p className="text-sm text-yellow-400 text-center">
-            🔗 Please connect your wallet first
-          </p>
-        )}
-        
-        {isConnected && chainId !== baseSepolia.id && (
-          <p className="text-sm text-yellow-400 text-center">
-            ⚠️ Please switch to Base Sepolia network
-          </p>
-        )}
-        
-        {isConnected && chainId === baseSepolia.id && !gameResult.boardImage && (
-          <p className="text-sm text-gray-400 text-center">
-            Board image required for NFT minting
-          </p>
-        )}
-        
-        {mintStatus === 'success' && (
-          <div className="text-center space-y-3">
-            <p className="text-sm text-green-400">
-              Your game board has been minted as an NFT! 🎉
-            </p>
-            <p className="text-xs text-gray-400">
-              Check your wallet to view your NFT
-            </p>
+    <div className="space-y-4">
+      <button
+        onClick={handleMintNFT}
+        disabled={mintStatus === 'minting' || !isEthProviderAvailable || !isConnected || chainId !== baseSepolia.id}
+        className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${
+          mintStatus === 'minting'
+            ? 'bg-gray-500 text-white cursor-not-allowed'
+            : mintStatus === 'success'
+            ? 'bg-green-600 hover:bg-green-700 text-white'
+            : mintStatus === 'error'
+            ? 'bg-red-600 hover:bg-red-700 text-white'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
+        }`}
+      >
+        {mintStatus === 'minting' && 'Minting NFT...'}
+        {mintStatus === 'success' && 'NFT Minted Successfully! 🎉'}
+        {mintStatus === 'error' && 'Mint Failed - Try Again'}
+        {mintStatus === 'idle' && 'Mint NFT'}
+      </button>
+
+      {mintStatus === 'success' && (
+        <div className="space-y-3">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 className="text-green-800 font-semibold">NFT Minted Successfully!</h3>
             {mintedTokenId && (
-              <button
-                onClick={() => setShowMarketplace(true)}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                🏪 Open Marketplace
-              </button>
+              <p className="text-green-700 text-sm mt-1">
+                Token ID: {mintedTokenId}
+              </p>
             )}
           </div>
-        )}
-        
-        {mintStatus === 'error' && (
-          <p className="text-sm text-red-400 text-center">
-            Failed to mint NFT. Please try again.
-          </p>
-        )}
-      </div>
-
-      {/* Marketplace Modal */}
-      {showMarketplace && mintedTokenId && (
-        <Marketplace
-          tokenId={mintedTokenId}
-          onClose={() => setShowMarketplace(false)}
-        />
+          
+          <div className="flex space-x-3">
+            <button
+              onClick={handleViewMarketplace}
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+            >
+              View in Marketplace
+            </button>
+          </div>
+        </div>
       )}
-    </>
+
+      {mintStatus === 'error' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-semibold">Minting Failed</h3>
+          <p className="text-red-700 text-sm mt-1">
+            Please try again. Make sure you have enough gas and are on the correct network.
+          </p>
+        </div>
+      )}
+
+      {!isConnected && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h3 className="text-yellow-800 font-semibold">Wallet Not Connected</h3>
+          <p className="text-yellow-700 text-sm mt-1">
+            Please connect your wallet to mint an NFT.
+          </p>
+        </div>
+      )}
+
+      {isConnected && chainId !== baseSepolia.id && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h3 className="text-yellow-800 font-semibold">Wrong Network</h3>
+          <p className="text-yellow-700 text-sm mt-1">
+            Please switch to Base Sepolia to mint NFTs.
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
