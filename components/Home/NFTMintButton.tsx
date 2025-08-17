@@ -150,61 +150,80 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         ])
       }
 
+      // First, let's try to get the user's account to ensure wallet is ready
       try {
-        // Approach 1: Minimal parameters with proper formatting
-        console.log('Trying with minimal parameters...')
-        const minimalParams = {
+        console.log('Checking wallet connection...')
+        const accounts = await ethProvider.request({ method: 'eth_accounts' })
+        console.log('Connected accounts:', accounts)
+        
+        if (!accounts || accounts.length === 0) {
+          throw new Error('No accounts found - wallet not connected')
+        }
+      } catch (error) {
+        console.error('Wallet connection check failed:', error)
+        throw new Error('Wallet not properly connected')
+      }
+
+      try {
+        // Approach 1: Try with a much simpler transaction first
+        console.log('Trying with simplified parameters...')
+        const simpleParams = {
           to: txParams.to,
           data: txParams.data,
-          gas: txParams.gas
+          from: address // Add the from address explicitly
         }
-        console.log('Minimal params:', minimalParams)
+        console.log('Simple params:', simpleParams)
         
-        hash = await sendTransactionWithTimeout(minimalParams, 15000)
-        console.log('✅ Transaction sent successfully with minimal params')
+        hash = await sendTransactionWithTimeout(simpleParams, 10000)
+        console.log('✅ Transaction sent successfully with simple params')
       } catch (error) {
-        console.log('❌ Minimal params failed:', error)
+        console.log('❌ Simple params failed:', error)
         
         try {
-          // Approach 2: Basic parameters (no gas)
-          console.log('Trying with basic parameters...')
-          const basicParams = {
+          // Approach 2: Try with just the essential parameters
+          console.log('Trying with essential parameters...')
+          const essentialParams = {
             to: txParams.to,
             data: txParams.data
           }
-          console.log('Basic params:', basicParams)
+          console.log('Essential params:', essentialParams)
           
-          hash = await sendTransactionWithTimeout(basicParams, 15000)
-          console.log('✅ Transaction sent successfully with basic params')
+          hash = await sendTransactionWithTimeout(essentialParams, 10000)
+          console.log('✅ Transaction sent successfully with essential params')
         } catch (error2) {
-          console.log('❌ Basic params failed:', error2)
+          console.log('❌ Essential params failed:', error2)
           
+          // Approach 3: Try using a different method - personal_sendTransaction
           try {
-            // Approach 3: Use gasPrice instead of maxFeePerGas
-            console.log('Trying with gasPrice...')
-            const gasPriceParams = {
-              to: txParams.to,
-              data: txParams.data,
-              gas: txParams.gas,
-              gasPrice: `0x${parseInt(transactionData.gasPrice || '1000000').toString(16)}` as `0x${string}`
-            }
-            console.log('GasPrice params:', gasPriceParams)
-            
-            hash = await sendTransactionWithTimeout(gasPriceParams, 15000)
-            console.log('✅ Transaction sent successfully with gasPrice')
+            console.log('Trying with personal_sendTransaction...')
+            hash = await ethProvider.request({
+              method: 'personal_sendTransaction',
+              params: [{
+                to: txParams.to,
+                data: txParams.data
+              }, null] // password parameter
+            }) as string
+            console.log('✅ Transaction sent successfully with personal_sendTransaction')
           } catch (error3) {
-            console.log('❌ GasPrice params failed:', error3)
+            console.log('❌ personal_sendTransaction failed:', error3)
             
-            // Approach 4: Last resort - just to and data
-            console.log('Trying with just to and data...')
-            const lastResortParams = {
-              to: txParams.to,
-              data: txParams.data
-            }
-            console.log('Last resort params:', lastResortParams)
-            
-            hash = await sendTransactionWithTimeout(lastResortParams, 15000)
-            console.log('✅ Transaction sent successfully with last resort params')
+                         // Approach 4: Last resort - try with a different transaction format
+             try {
+               console.log('Trying with alternative transaction format...')
+               // Try with a different parameter structure
+               const altParams = {
+                 to: txParams.to,
+                 data: txParams.data,
+                 value: '0x0' // Add explicit value
+               }
+               console.log('Alternative params:', altParams)
+               
+               hash = await sendTransactionWithTimeout(altParams, 10000)
+               console.log('✅ Transaction sent successfully with alternative format')
+             } catch (error4) {
+               console.log('❌ Alternative format failed:', error4)
+               throw new Error('All transaction methods failed - wallet may not support this transaction type')
+             }
           }
         }
       }
