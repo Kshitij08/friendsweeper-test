@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     const results = {
       contractAddress,
       owner: await contract.owner(),
-      totalTokenTypes: await contract.totalTokenTypes(),
-      nextTokenId: await contract.nextTokenId(),
+      totalTokenTypes: (await contract.totalTokenTypes()).toString(),
+      nextTokenId: (await contract.nextTokenId()).toString(),
       hasMintNFTFunction: contract.interface.hasFunction('mintNFT'),
       mintNFTFunctionSignature: contract.interface.getFunction('mintNFT')?.format(),
       functionCount: contract.interface.fragments.length
