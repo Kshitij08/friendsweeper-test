@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
-import { useAccount, useSwitchChain } from 'wagmi'
+import { useAccount, useSwitchChain, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
 import { baseSepolia } from 'viem/chains'
 import { encodeFunctionData } from 'viem'
-import sdk from '@farcaster/miniapp-sdk'
 
 interface NFTMintButtonProps {
   gameResult: {
@@ -28,6 +27,14 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const { isEthProviderAvailable, context } = useFrame()
   const { isConnected, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
+  
+  // Use Wagmi hooks as recommended by Farcaster documentation
+  const { data: hash, sendTransaction, isPending, error: sendError } = useSendTransaction()
+  
+  // Wait for transaction receipt
+  const { data: receipt, isSuccess, isError } = useWaitForTransactionReceipt({
+    hash,
+  })
 
   // Handle chain switching if needed
   useEffect(() => {
@@ -35,6 +42,65 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       switchChain({ chainId: baseSepolia.id })
     }
   }, [isConnected, chainId, switchChain])
+
+  // Handle transaction success
+  useEffect(() => {
+    if (isSuccess && receipt && hash) {
+      console.log('Transaction confirmed:', hash)
+      
+      // Extract token ID from logs
+      let tokenId = null
+      const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
+      if (contractAddress) {
+        // Try to extract token ID from logs
+        for (const log of receipt.logs) {
+          try {
+            // Simple check for TransferSingle event
+            if (log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') {
+              // This is a TransferSingle event, extract token ID from topics
+              if (log.topics.length >= 4 && log.topics[3]) {
+                tokenId = Number(BigInt(log.topics[3]))
+                break
+              }
+            }
+          } catch (e) {
+            // Continue to next log
+          }
+        }
+      }
+
+      setMintStatus('success')
+      setMintedTokenId(tokenId)
+      
+      const mintResponse: MintNFTResponse = {
+        success: true,
+        tokenId: tokenId?.toString() || 'unknown',
+        transactionHash: hash,
+        metadata: {
+          name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
+          description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
+          image: 'https://friendsweeper-test.vercel.app/placeholder.png',
+          attributes: [
+            { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
+            { trait_type: "Followers", value: gameResult.followers.length }
+          ]
+        }
+      }
+      
+      onMintSuccess?.(mintResponse)
+      console.log('NFT minted successfully:', mintResponse)
+    }
+  }, [isSuccess, receipt, hash, gameResult, onMintSuccess])
+
+  // Handle transaction error
+  useEffect(() => {
+    if (isError || sendError) {
+      setMintStatus('error')
+      const errorMessage = sendError?.message || 'Transaction failed'
+      onMintError?.(errorMessage)
+      console.error('Transaction error:', sendError)
+    }
+  }, [isError, sendError, onMintError])
 
   const handleMintNFT = async () => {
     if (!isEthProviderAvailable || !isConnected || chainId !== baseSepolia.id) {
@@ -58,11 +124,11 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Create extremely minimal metadata to keep transaction size small
+      // Create minimal metadata to keep transaction size small
       const metadata = {
         name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
         description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
-        image: 'https://friendsweeper-test.vercel.app/placeholder.png', // Minimal placeholder
+        image: 'https://friendsweeper-test.vercel.app/placeholder.png',
         attributes: [
           { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
           { trait_type: "Followers", value: gameResult.followers.length }
@@ -100,59 +166,25 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         args: [metadataUri, BigInt(1)]
       })
 
-      console.log('Sending transaction with Farcaster SDK...')
+      console.log('Sending transaction with Wagmi...')
       console.log('Transaction details:', {
         to: contractAddress,
         data: mintData.substring(0, 20) + '...',
         gas: '0x493e0'
       })
 
-      // Use Farcaster SDK directly as per official documentation
-      const txHash = await sdk.wallet.ethProvider.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          to: contractAddress as `0x${string}`,
-          data: mintData,
-          gas: '0x493e0', // 300000 in hex
-        }]
-      })
-
-      console.log('Transaction sent:', txHash)
-
-      // Wait for transaction confirmation
-      const provider = new (await import('ethers')).JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL)
-      const receipt = await provider.waitForTransaction(txHash as string)
-      
-      console.log('Transaction confirmed:', receipt)
-
-      // Extract token ID from TransferSingle event
-      let tokenId: number | null = null
-      if (receipt) {
-        for (const log of receipt.logs) {
-          if (log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') { // TransferSingle event
-            if (log.topics.length >= 4 && log.topics[3]) {
-              tokenId = Number(BigInt(log.topics[3]))
-              break
-            }
-          }
-        }
-      }
-
-      setMintedTokenId(tokenId)
-      setMintStatus('success')
-
-      onMintSuccess?.({
-        success: true,
-        tokenId: tokenId?.toString() || '0',
-        transactionHash: txHash as string,
-        metadata: metadata
+      // Use Wagmi's sendTransaction as recommended by Farcaster documentation
+      sendTransaction({
+        to: contractAddress as `0x${string}`,
+        data: mintData,
+        gas: BigInt(300000),
       })
 
     } catch (error) {
       setMintStatus('error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       onMintError?.(errorMessage)
-      console.error('NFT minting failed:', error)
+      console.error('Error preparing transaction:', error)
     }
   }
 
@@ -172,9 +204,9 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     <div className="space-y-4">
       <button
         onClick={handleMintNFT}
-        disabled={mintStatus === 'minting' || !isEthProviderAvailable || !isConnected || chainId !== baseSepolia.id}
+        disabled={isPending || mintStatus === 'minting' || !isEthProviderAvailable || !isConnected || chainId !== baseSepolia.id}
         className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${
-          mintStatus === 'minting'
+          isPending || mintStatus === 'minting'
             ? 'bg-gray-500 text-white cursor-not-allowed'
             : mintStatus === 'success'
             ? 'bg-green-600 hover:bg-green-700 text-white'
@@ -183,10 +215,18 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
             : 'bg-blue-600 hover:bg-blue-700 text-white'
         }`}
       >
-        {mintStatus === 'minting' && 'Minting NFT...'}
-        {mintStatus === 'success' && 'NFT Minted Successfully! 🎉'}
-        {mintStatus === 'error' && 'Mint Failed - Try Again'}
-        {mintStatus === 'idle' && 'Mint NFT'}
+        {isPending || mintStatus === 'minting' ? (
+          <>
+            <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+            Signing Transaction...
+          </>
+        ) : mintStatus === 'success' ? (
+          'NFT Minted Successfully! 🎉'
+        ) : mintStatus === 'error' ? (
+          'Mint Failed - Try Again'
+        ) : (
+          'Mint NFT'
+        )}
       </button>
 
       {mintStatus === 'success' && (
