@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
     // Create contract instance (read-only)
     const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, provider)
 
-    // Create metadata URI
-    const metadataUri = `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString('base64')}`
+    // Create metadata URI - use a simple test URI first
+    const metadataUri = 'https://example.com/test-metadata.json'
     
     // Encode the mintNFT function call (public function)
     console.log('Calling mintNFT function with:', {
