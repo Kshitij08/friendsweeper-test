@@ -92,11 +92,21 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('Transaction data received:', {
         to: transactionData.to,
         data: transactionData.data?.substring(0, 20) + '...',
+        dataLength: transactionData.data?.length || 0,
         gasLimit: transactionData.gasLimit,
         gasPrice: transactionData.gasPrice,
         maxFeePerGas: transactionData.maxFeePerGas,
         maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas
       })
+
+      // Validate transaction data
+      if (!transactionData.to || !transactionData.data) {
+        throw new Error('Invalid transaction data: missing to address or data')
+      }
+
+      if (transactionData.data.length > 10000) {
+        console.warn('⚠️ Transaction data is very long:', transactionData.data.length, 'characters')
+      }
 
       // Get Farcaster SDK
       const sdk = await import('@farcaster/miniapp-sdk')
@@ -110,9 +120,9 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       const txParams = {
         to: transactionData.to,
         data: transactionData.data,
-        gas: transactionData.gasLimit || '0x493e0', // 300,000 gas
-        maxFeePerGas: transactionData.maxFeePerGas || undefined,
-        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas || undefined
+        gas: `0x${parseInt(transactionData.gasLimit || '300000').toString(16)}` as `0x${string}`,
+        maxFeePerGas: transactionData.maxFeePerGas ? `0x${parseInt(transactionData.maxFeePerGas).toString(16)}` as `0x${string}` : undefined,
+        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas ? `0x${parseInt(transactionData.maxPriorityFeePerGas).toString(16)}` as `0x${string}` : undefined
       }
 
       // Remove undefined values
@@ -124,11 +134,51 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
 
       console.log('Sending transaction with Farcaster SDK:', txParams)
 
-      // Send transaction using Farcaster SDK
-      const hash = await ethProvider.request({
-        method: 'eth_sendTransaction',
-        params: [txParams]
-      })
+      // Try different approaches to send the transaction
+      let hash = null
+      
+      try {
+        // Approach 1: Full parameters
+        console.log('Trying with full parameters...')
+        hash = await ethProvider.request({
+          method: 'eth_sendTransaction',
+          params: [txParams]
+        })
+        console.log('✅ Transaction sent successfully with full parameters')
+      } catch (error) {
+        console.log('❌ Full parameters failed, trying minimal params:', error)
+        
+        try {
+          // Approach 2: Minimal parameters
+          const minimalParams = {
+            to: txParams.to,
+            data: txParams.data,
+            gas: txParams.gas
+          }
+          console.log('Trying minimal params:', minimalParams)
+          
+          hash = await ethProvider.request({
+            method: 'eth_sendTransaction',
+            params: [minimalParams]
+          })
+          console.log('✅ Transaction sent successfully with minimal params')
+        } catch (error2) {
+          console.log('❌ Minimal params failed, trying basic params:', error2)
+          
+          // Approach 3: Basic parameters
+          const basicParams = {
+            to: txParams.to,
+            data: txParams.data
+          }
+          console.log('Trying basic params:', basicParams)
+          
+          hash = await ethProvider.request({
+            method: 'eth_sendTransaction',
+            params: [basicParams]
+          })
+          console.log('✅ Transaction sent successfully with basic params')
+        }
+      }
 
       console.log('Transaction sent successfully:', hash)
 
