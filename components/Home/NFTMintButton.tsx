@@ -92,7 +92,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('Contract call data prepared:', {
         to: contractAddress,
         dataLength: data.length,
-        metadataLength: metadataUri.length
+        metadataLength: metadataUri.length,
+        imageUrl: metadata.image,
+        imageUrlLength: metadata.image?.length || 0,
+        isBase64Image: metadata.image?.startsWith('data:image/') || false
       })
 
       // Use Farcaster SDK directly with timeout

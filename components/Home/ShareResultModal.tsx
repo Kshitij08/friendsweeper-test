@@ -195,7 +195,10 @@ export function ShareResultModal({
             <div className="bg-gray-700/50 rounded-xl p-4 mb-6 border border-gray-600">
               <h4 className="text-white font-semibold mb-3">Mint as NFT:</h4>
               <NFTMintButton 
-                gameResult={gameResult}
+                gameResult={{
+                  ...gameResult,
+                  boardImage: publicImageUrl || gameResult.boardImage
+                }}
                 onMintSuccess={(response) => {
                   console.log('NFT minted successfully:', response)
                 }}
