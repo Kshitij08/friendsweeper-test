@@ -83,6 +83,16 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('User signing transaction...')
       const { transactionData } = result
 
+      // Debug: Log the transaction data
+      console.log('Transaction data received:', {
+        to: transactionData.to,
+        data: transactionData.data?.substring(0, 20) + '...',
+        gasLimit: transactionData.gasLimit,
+        gasPrice: transactionData.gasPrice,
+        maxFeePerGas: transactionData.maxFeePerGas,
+        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas
+      })
+
       // Use Farcaster SDK wallet provider
       const ethProvider = sdk.default.wallet.ethProvider
       
@@ -90,15 +100,28 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         throw new Error('Farcaster wallet provider not available')
       }
 
+      // Prepare transaction parameters
+      const txParams = {
+        to: transactionData.to,
+        data: transactionData.data,
+        gas: transactionData.gasLimit || '0x493e0', // Fallback to 300,000 gas
+        maxFeePerGas: transactionData.maxFeePerGas || undefined,
+        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas || undefined
+      }
+
+      // Remove undefined values to avoid wallet issues
+      Object.keys(txParams).forEach(key => {
+        if ((txParams as any)[key] === undefined || (txParams as any)[key] === '0') {
+          delete (txParams as any)[key]
+        }
+      })
+
+      // Debug: Log the final transaction parameters
+      console.log('Sending transaction with params:', txParams)
+
       const hash = await ethProvider.request({
         method: 'eth_sendTransaction',
-        params: [{
-          to: transactionData.to,
-          data: transactionData.data,
-          gas: transactionData.gasLimit,
-          maxFeePerGas: transactionData.maxFeePerGas,
-          maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas
-        }]
+        params: [txParams]
       })
 
       console.log('Transaction sent:', hash)
