@@ -23,7 +23,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const { context, isEthProviderAvailable } = useFrame()
   const { isConnected, address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const { sendTransaction, data: hash, isPending, error: sendError } = useSendTransaction()
+  const { data: hash, sendTransaction, isPending, error: sendError } = useSendTransaction()
   
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
   const [showMarketplace, setShowMarketplace] = useState(false)
@@ -133,14 +133,6 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Add a small delay to ensure connector is fully ready
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      // Double-check connection status
-      if (!isConnected || chainId !== baseSepolia.id) {
-        throw new Error('Wallet connection lost or wrong network')
-      }
-
       // Create a simple metadata URI for now
       const metadata = {
         name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
@@ -195,7 +187,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         data: mintData.substring(0, 20) + '...',
         gas: '300000'
       })
-      
+
       // Use the same pattern as WalletActions
       sendTransaction({
         to: contractAddress as `0x${string}`,
