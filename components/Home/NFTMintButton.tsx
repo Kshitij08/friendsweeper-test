@@ -58,13 +58,13 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Create a simple metadata URI for now
+      // Create a simple metadata URI without the large image data
       const metadata = {
         name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
         description: gameResult.gameWon
           ? `A victorious Friendsweeper game where the player avoided all ${gameResult.followers.length} followers and won!`
           : `A Friendsweeper game where the player was defeated by a follower.`,
-        image: gameResult.boardImage,
+        image: gameResult.boardImage, // This will be the uploaded image URL
         external_url: 'https://friendsweeper-test.vercel.app',
         attributes: [
           { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
@@ -83,8 +83,8 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         })
       }
 
-      // Create metadata URI (base64 encoded data URL)
-      const metadataUri = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`
+      // Use a simple string instead of base64 encoded data to reduce transaction size
+      const metadataUri = JSON.stringify(metadata)
 
       // Encode the mintNFT function call
       const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
@@ -110,7 +110,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       console.log('Transaction details:', {
         to: contractAddress,
         data: mintData.substring(0, 20) + '...',
-        gas: '300000'
+        gas: '0x493e0'
       })
 
       // Use Farcaster SDK directly as per official documentation
