@@ -111,23 +111,32 @@ export async function POST(request: NextRequest) {
     let metadataUri = 'https://example.com/fallback-metadata.json'
     
     try {
+      // Convert metadata to base64 data URL as expected by Cloudflare Worker
+      const metadataJson = JSON.stringify(metadata, null, 2)
+      const metadataBase64 = btoa(metadataJson)
+      const metadataDataUrl = `data:application/json;base64,${metadataBase64}`
+      
+      console.log('Metadata data URL length:', metadataDataUrl.length)
+      
       const metadataResponse = await fetch(`${process.env.CLOUDFLARE_WORKER_URL}/upload/nft-metadata`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          metadata: metadata,
-          filename: `metadata_${Date.now()}.json`
+          imageData: metadataDataUrl, // Cloudflare Worker expects this field name
+          contentType: 'application/json',
+          type: 'metadata'
         })
       })
 
       if (metadataResponse.ok) {
         const metadataResult = await metadataResponse.json()
-        metadataUri = metadataResult.url
+        metadataUri = metadataResult.publicUrl
         console.log('✅ Metadata uploaded successfully:', metadataUri)
       } else {
-        console.warn('⚠️ Metadata upload failed, using fallback')
+        const errorText = await metadataResponse.text()
+        console.warn('⚠️ Metadata upload failed:', errorText)
       }
     } catch (metadataError) {
       console.warn('⚠️ Metadata upload failed:', metadataError)
