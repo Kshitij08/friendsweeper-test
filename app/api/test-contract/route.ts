@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       nextTokenId: await contract.nextTokenId(),
       hasMintNFTFunction: contract.interface.hasFunction('mintNFT'),
       mintNFTFunctionSignature: contract.interface.getFunction('mintNFT')?.format(),
-      allFunctions: contract.interface.fragments.map(f => f.name)
+      functionCount: contract.interface.fragments.length
     }
 
     return NextResponse.json({
