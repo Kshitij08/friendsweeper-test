@@ -183,6 +183,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
 
       console.log('Sending transaction with wagmi...')
       
+      // Use the same pattern as WalletActions
       sendTransaction({
         to: contractAddress as `0x${string}`,
         data: mintData,
