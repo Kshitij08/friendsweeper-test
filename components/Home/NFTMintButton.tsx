@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTRequest, MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
@@ -21,13 +21,15 @@ interface NFTMintButtonProps {
 export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMintButtonProps) {
   const { context, isEthProviderAvailable } = useFrame()
   const { isConnected, address, chainId } = useAccount()
-  const { data: hash, sendTransaction } = useSendTransaction()
+  const { data: hash, sendTransaction, isPending, error } = useSendTransaction()
   const { switchChain } = useSwitchChain()
   
   const [isMinting, setIsMinting] = useState(false)
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
   const [showMarketplace, setShowMarketplace] = useState(false)
   const [mintedTokenId, setMintedTokenId] = useState<string | null>(null)
+  const [pendingTransaction, setPendingTransaction] = useState<any>(null)
+  const [apiResponse, setApiResponse] = useState<any>(null)
 
   const handleMintNFT = async () => {
     console.log('Mint NFT clicked - Debug info:', {
@@ -85,6 +87,9 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         throw new Error(result.error || 'Failed to prepare transaction')
       }
 
+      // Store API response for later use
+      setApiResponse(result)
+
       // Step 2: User signs and sends transaction using Wagmi
       console.log('User signing transaction...')
       const { transactionData } = result
@@ -119,74 +124,110 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
 
       // Send transaction using Wagmi
       sendTransaction(txParams)
-      
-      // Wait for the hash to be available from the hook
-      let attempts = 0
-      while (!hash && attempts < 50) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        attempts++
-      }
-      
-      if (!hash) {
-        throw new Error('Transaction failed to send or timed out')
-      }
-
-      console.log('Transaction sent:', hash)
-
-      // Step 3: Wait for transaction confirmation
-      console.log('Waiting for transaction confirmation...')
-      const { ethers } = await import('ethers')
-      const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org')
-      
-      const receipt = await provider.waitForTransaction(hash)
-      if (!receipt) {
-        throw new Error('Transaction receipt is null')
-      }
-      console.log('Transaction confirmed:', receipt.hash)
-
-      // Step 4: Extract token ID from logs
-      let tokenId = null
-      const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
-      if (contractAddress) {
-        const NFTContract = await import('@/lib/contracts/FriendsweeperNFT.json')
-        const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, provider)
-        
-        for (const log of receipt.logs) {
-          try {
-            const decodedLog = contract.interface.parseLog(log)
-            if (decodedLog && decodedLog.name === 'TransferSingle') {
-              tokenId = decodedLog.args.id.toString()
-              break
-            }
-          } catch (e) {
-            // Continue to next log
-          }
-        }
-      }
-
-      setMintStatus('success')
-      setMintedTokenId(tokenId || 'unknown')
-      
-      const mintResponse: MintNFTResponse = {
-        success: true,
-        tokenId: tokenId || 'unknown',
-        transactionHash: hash,
-        metadata: result.metadata,
-        imageUrl: result.imageUrl
-      }
-      
-      onMintSuccess?.(mintResponse)
-      console.log('NFT minted successfully:', mintResponse)
+      setPendingTransaction(txParams)
 
     } catch (error) {
       setMintStatus('error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       onMintError?.(errorMessage)
       console.error('Error minting NFT:', error)
-    } finally {
       setIsMinting(false)
     }
   }
+
+  // Handle transaction state changes
+  useEffect(() => {
+    if (error && pendingTransaction) {
+      console.error('Transaction error:', error)
+      setMintStatus('error')
+      onMintError?.(error.message || 'Transaction failed')
+      setIsMinting(false)
+      setPendingTransaction(null)
+    }
+  }, [error, pendingTransaction, onMintError])
+
+  // Debug transaction states
+  useEffect(() => {
+    console.log('Transaction state:', { isPending, hash, error, pendingTransaction: !!pendingTransaction })
+  }, [isPending, hash, error, pendingTransaction])
+
+  // Handle successful transaction
+  useEffect(() => {
+    if (hash && pendingTransaction) {
+      console.log('Transaction sent successfully:', hash)
+      
+      // Wait for transaction confirmation
+      const waitForConfirmation = async () => {
+        try {
+          console.log('Waiting for transaction confirmation...')
+          const { ethers } = await import('ethers')
+          const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org')
+          
+          const receipt = await provider.waitForTransaction(hash)
+          if (!receipt) {
+            throw new Error('Transaction receipt is null')
+          }
+          console.log('Transaction confirmed:', receipt.hash)
+
+          // Extract token ID from logs
+          let tokenId = null
+          const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
+          if (contractAddress) {
+            const NFTContract = await import('@/lib/contracts/FriendsweeperNFT.json')
+            const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, provider)
+            
+            for (const log of receipt.logs) {
+              try {
+                const decodedLog = contract.interface.parseLog(log)
+                if (decodedLog && decodedLog.name === 'TransferSingle') {
+                  tokenId = decodedLog.args.id.toString()
+                  break
+                }
+              } catch (e) {
+                // Continue to next log
+              }
+            }
+          }
+
+          setMintStatus('success')
+          setMintedTokenId(tokenId || 'unknown')
+          
+          const mintResponse: MintNFTResponse = {
+            success: true,
+            tokenId: tokenId || 'unknown',
+            transactionHash: hash,
+            metadata: apiResponse?.metadata || {
+              name: 'Friendsweeper NFT',
+              description: 'A Friendsweeper game NFT',
+              image: '',
+              attributes: []
+            },
+            imageUrl: apiResponse?.imageUrl || ''
+          }
+          
+          onMintSuccess?.(mintResponse)
+          console.log('NFT minted successfully:', mintResponse)
+          
+        } catch (error) {
+          console.error('Error waiting for transaction confirmation:', error)
+          setMintStatus('error')
+          onMintError?.(error instanceof Error ? error.message : 'Transaction confirmation failed')
+        } finally {
+          setIsMinting(false)
+          setPendingTransaction(null)
+        }
+      }
+
+      waitForConfirmation()
+    }
+  }, [hash, pendingTransaction, onMintSuccess, onMintError])
+
+  // Update minting status based on isPending
+  useEffect(() => {
+    if (isPending && pendingTransaction) {
+      setMintStatus('minting')
+    }
+  }, [isPending, pendingTransaction])
 
   const getButtonText = () => {
     if (chainId !== baseSepolia.id) {
