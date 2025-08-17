@@ -106,8 +106,32 @@ export async function POST(request: NextRequest) {
     // Create contract instance (read-only)
     const contract = new ethers.Contract(contractAddress, NFTContract.default.abi, provider)
 
-    // Create metadata URI - use a simple test URI first
-    const metadataUri = 'https://example.com/test-metadata.json'
+    // Step 2.5: Upload metadata to Cloudflare
+    console.log('Step 2.5: Uploading metadata to Cloudflare...')
+    let metadataUri = 'https://example.com/fallback-metadata.json'
+    
+    try {
+      const metadataResponse = await fetch(`${process.env.CLOUDFLARE_WORKER_URL}/upload/nft-metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          metadata: metadata,
+          filename: `metadata_${Date.now()}.json`
+        })
+      })
+
+      if (metadataResponse.ok) {
+        const metadataResult = await metadataResponse.json()
+        metadataUri = metadataResult.url
+        console.log('✅ Metadata uploaded successfully:', metadataUri)
+      } else {
+        console.warn('⚠️ Metadata upload failed, using fallback')
+      }
+    } catch (metadataError) {
+      console.warn('⚠️ Metadata upload failed:', metadataError)
+    }
     
     // Encode the mintNFT function call (public function)
     console.log('Calling mintNFT function with:', {
