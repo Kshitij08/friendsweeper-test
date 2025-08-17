@@ -133,6 +133,14 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
+      // Add a small delay to ensure connector is fully ready
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Double-check connection status
+      if (!isConnected || chainId !== baseSepolia.id) {
+        throw new Error('Wallet connection lost or wrong network')
+      }
+
       // Create a simple metadata URI for now
       const metadata = {
         name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'} #${Date.now()}`,
@@ -182,6 +190,11 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       })
 
       console.log('Sending transaction with wagmi...')
+      console.log('Transaction details:', {
+        to: contractAddress,
+        data: mintData.substring(0, 20) + '...',
+        gas: '300000'
+      })
       
       // Use the same pattern as WalletActions
       sendTransaction({
