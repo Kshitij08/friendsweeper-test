@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
-import { useAccount, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { baseSepolia } from 'viem/chains'
-import { parseAbi } from 'viem'
+import { encodeFunctionData, parseAbi } from 'viem'
+import sdk from '@farcaster/miniapp-sdk'
 
 interface NFTMintButtonProps {
   gameResult: {
@@ -23,86 +24,14 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null)
   const [showMarketplace, setShowMarketplace] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const { isEthProviderAvailable, context } = useFrame()
   const { isConnected, chainId, address } = useAccount()
-  const { switchChain } = useSwitchChain()
-  
-  // Use wagmi's useWriteContract hook - this might work better with Farcaster
-  const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
-  
-  // Wait for transaction receipt
-  const { data: receipt, isSuccess, isError } = useWaitForTransactionReceipt({
-    hash,
-  })
-
-  // Handle chain switching if needed
-  useEffect(() => {
-    if (isConnected && chainId !== baseSepolia.id) {
-      switchChain({ chainId: baseSepolia.id })
-    }
-  }, [isConnected, chainId, switchChain])
-
-
-
-  // Handle transaction success
-  useEffect(() => {
-    if (isSuccess && receipt && hash) {
-      console.log('Transaction confirmed:', hash)
-      
-      // Extract token ID from logs
-      let tokenId = null
-      for (const log of receipt.logs) {
-        try {
-          // Simple check for TransferSingle event
-          if (log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') {
-            // This is a TransferSingle event, extract token ID from topics
-            if (log.topics.length >= 4 && log.topics[3]) {
-              tokenId = Number(BigInt(log.topics[3]))
-              break
-            }
-          }
-        } catch (e) {
-          // Continue to next log
-        }
-      }
-
-      setMintStatus('success')
-      setMintedTokenId(tokenId)
-      
-      const mintResponse: MintNFTResponse = {
-        success: true,
-        tokenId: tokenId?.toString() || 'unknown',
-        transactionHash: hash,
-        metadata: {
-          name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
-          description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
-          image: gameResult.boardImage || 'https://friendsweeper-test.vercel.app/placeholder.png',
-          attributes: [
-            { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
-            { trait_type: "Followers", value: gameResult.followers.length }
-          ]
-        }
-      }
-      
-      onMintSuccess?.(mintResponse)
-      console.log('NFT minted successfully:', mintResponse)
-    }
-  }, [isSuccess, receipt, hash, gameResult, onMintSuccess])
-
-  // Handle transaction error
-  useEffect(() => {
-    if (isError || writeError) {
-      setMintStatus('error')
-      const errorMessage = writeError?.message || 'Transaction failed'
-      onMintError?.(errorMessage)
-      console.error('Transaction error:', writeError)
-    }
-  }, [isError, writeError, onMintError])
 
   const handleMintNFT = async () => {
-    if (!isConnected || chainId !== baseSepolia.id) {
-      onMintError?.('Please connect wallet and switch to Base Sepolia')
+    if (!isEthProviderAvailable) {
+      onMintError?.('Farcaster wallet provider not available')
       return
     }
 
@@ -111,15 +40,16 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
       return
     }
 
-    console.log('Mint NFT clicked - Using wagmi useWriteContract')
+    console.log('Mint NFT clicked - Using direct Farcaster SDK')
     console.log('Wallet info:', {
-      isConnected,
+      isEthProviderAvailable,
       chainId,
       address,
       hasBoardImage: !!gameResult.boardImage
     })
 
     setMintStatus('minting')
+    setIsProcessing(true)
 
     try {
       // Create minimal metadata
@@ -148,11 +78,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         throw new Error('NFT contract address not configured')
       }
 
-      console.log('Calling writeContract with wagmi...')
-      
-      // Use wagmi's writeContract - this should work better with Farcaster
-      writeContract({
-        address: contractAddress as `0x${string}`,
+      console.log('Preparing contract call...')
+
+      // Encode function data using viem
+      const data = encodeFunctionData({
         abi: parseAbi([
           'function mintNFT(string metadataURI, uint256 amount) returns (uint256)'
         ]),
@@ -160,11 +89,124 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         args: [metadataUri, BigInt(1)],
       })
 
+      console.log('Contract call data prepared:', {
+        to: contractAddress,
+        dataLength: data.length,
+        metadataLength: metadataUri.length
+      })
+
+      // Use Farcaster SDK directly with timeout
+      const ethProvider = sdk.wallet.ethProvider
+      if (!ethProvider) {
+        throw new Error('Ethereum provider not available')
+      }
+
+      console.log('Calling ethProvider.request...')
+      
+      // Create a promise with timeout
+      const transactionPromise = ethProvider.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          to: contractAddress as `0x${string}`,
+          data: data,
+          from: address || undefined,
+        }]
+      })
+
+      // Add 15 second timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Transaction request timed out')), 15000)
+      )
+
+      const txHash = await Promise.race([transactionPromise, timeoutPromise]) as string
+      console.log('Transaction submitted:', txHash)
+
+      // Wait for transaction confirmation using fetch
+      console.log('Waiting for transaction confirmation...')
+      const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
+      
+      let receipt = null
+      let attempts = 0
+      const maxAttempts = 30 // 30 attempts with 2 second intervals = 1 minute max
+
+      while (!receipt && attempts < maxAttempts) {
+        try {
+          const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_getTransactionReceipt',
+              params: [txHash],
+              id: 1
+            })
+          })
+
+          const result = await response.json()
+          if (result.result && result.result.status === '0x1') {
+            receipt = result.result
+            break
+          }
+        } catch (e) {
+          console.log('Checking transaction status...', attempts + 1)
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds
+        attempts++
+      }
+
+      if (!receipt) {
+        throw new Error('Transaction confirmation timeout. Please check your wallet.')
+      }
+
+      console.log('Transaction confirmed:', receipt)
+
+      // Extract token ID from logs
+      let tokenId = null
+      if (receipt.logs && Array.isArray(receipt.logs)) {
+        for (const log of receipt.logs) {
+          try {
+            // Simple check for TransferSingle event
+            if (log.topics && log.topics[0] === '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62') {
+              if (log.topics.length >= 4 && log.topics[3]) {
+                tokenId = Number(BigInt(log.topics[3]))
+                break
+              }
+            }
+          } catch (e) {
+            // Continue to next log
+          }
+        }
+      }
+
+      setMintStatus('success')
+      setMintedTokenId(tokenId)
+      
+      const mintResponse: MintNFTResponse = {
+        success: true,
+        tokenId: tokenId?.toString() || 'unknown',
+        transactionHash: txHash,
+        metadata: {
+          name: `Friendsweeper ${gameResult.gameWon ? 'Victory' : 'Game Over'}`,
+          description: gameResult.gameWon ? 'Victory!' : 'Game Over!',
+          image: gameResult.boardImage || 'https://friendsweeper-test.vercel.app/placeholder.png',
+          attributes: [
+            { trait_type: "Result", value: gameResult.gameWon ? "Victory" : "Defeat" },
+            { trait_type: "Followers", value: gameResult.followers.length }
+          ]
+        }
+      }
+      
+      onMintSuccess?.(mintResponse)
+      console.log('NFT minted successfully:', mintResponse)
+
     } catch (error) {
       setMintStatus('error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       onMintError?.(errorMessage)
-      console.error('Error preparing transaction:', error)
+      console.error('NFT minting failed:', errorMessage)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -184,9 +226,9 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     <div className="space-y-4">
       <button
         onClick={handleMintNFT}
-        disabled={isPending || mintStatus === 'minting' || !isConnected || chainId !== baseSepolia.id}
+        disabled={isProcessing || mintStatus === 'minting' || !isEthProviderAvailable}
         className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${
-          mintStatus === 'minting'
+          mintStatus === 'minting' || isProcessing
             ? 'bg-gray-500 text-white cursor-not-allowed'
             : mintStatus === 'success'
             ? 'bg-green-600 hover:bg-green-700 text-white'
@@ -195,10 +237,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
             : 'bg-blue-600 hover:bg-blue-700 text-white'
         }`}
       >
-        {isPending || mintStatus === 'minting' ? (
+        {isProcessing || mintStatus === 'minting' ? (
           <>
             <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-            {isPending ? 'Confirm Transaction...' : 'Minting NFT...'}
+            {mintStatus === 'minting' ? 'Minting NFT...' : 'Processing...'}
           </>
         ) : mintStatus === 'success' ? (
           'NFT Minted Successfully! 🎉'
@@ -240,20 +282,11 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         </div>
       )}
 
-      {!isConnected && (
+      {!isEthProviderAvailable && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-yellow-800 font-semibold">Wallet Not Connected</h3>
+          <h3 className="text-yellow-800 font-semibold">Wallet Not Available</h3>
           <p className="text-yellow-700 text-sm mt-1">
-            Please connect your wallet to mint an NFT.
-          </p>
-        </div>
-      )}
-
-      {isConnected && chainId !== baseSepolia.id && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-yellow-800 font-semibold">Wrong Network</h3>
-          <p className="text-yellow-700 text-sm mt-1">
-            Please switch to Base Sepolia to mint NFTs.
+            Please open this app in a Farcaster client to mint NFTs.
           </p>
         </div>
       )}
