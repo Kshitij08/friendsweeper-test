@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useFrame } from '@/components/farcaster-provider'
 import { MintNFTRequest, MintNFTResponse } from '@/types'
 import { Marketplace } from './Marketplace'
+import { useAccount, useSendTransaction, useSwitchChain } from 'wagmi'
+import { baseSepolia } from 'viem/chains'
 
 interface NFTMintButtonProps {
   gameResult: {
@@ -18,6 +20,10 @@ interface NFTMintButtonProps {
 
 export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMintButtonProps) {
   const { context, isEthProviderAvailable } = useFrame()
+  const { isConnected, address, chainId } = useAccount()
+  const { data: hash, sendTransaction } = useSendTransaction()
+  const { switchChain } = useSwitchChain()
+  
   const [isMinting, setIsMinting] = useState(false)
   const [mintStatus, setMintStatus] = useState<'idle' | 'minting' | 'success' | 'error'>('idle')
   const [showMarketplace, setShowMarketplace] = useState(false)
@@ -26,12 +32,25 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const handleMintNFT = async () => {
     console.log('Mint NFT clicked - Debug info:', {
       isEthProviderAvailable,
+      isConnected,
+      chainId,
       hasBoardImage: !!gameResult.boardImage,
       contextUser: context?.user
     })
 
     if (!isEthProviderAvailable) {
       onMintError?.('Farcaster wallet not available')
+      return
+    }
+
+    if (!isConnected) {
+      onMintError?.('Wallet not connected')
+      return
+    }
+
+    if (chainId !== baseSepolia.id) {
+      console.log('Switching to Base Sepolia...')
+      switchChain({ chainId: baseSepolia.id })
       return
     }
 
@@ -44,24 +63,11 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     setMintStatus('minting')
 
     try {
-      // Get user address from Farcaster SDK
-      const sdk = await import('@farcaster/miniapp-sdk')
-      const accounts = await sdk.default.wallet.ethProvider?.request({
-        method: 'eth_accounts'
-      })
-      const userAddress = accounts?.[0]
-      
-      console.log('Got address from Farcaster SDK:', userAddress)
-
-      if (!userAddress) {
-        throw new Error('No wallet address available')
-      }
-
       // Step 1: Prepare transaction data
       const mintRequest: MintNFTRequest = {
         gameResult,
         userFid: context?.user?.fid?.toString(),
-        userAddress: userAddress
+        userAddress: address!
       }
 
       console.log('Preparing transaction data...')
@@ -79,7 +85,7 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         throw new Error(result.error || 'Failed to prepare transaction')
       }
 
-      // Step 2: User signs and sends transaction
+      // Step 2: User signs and sends transaction using Wagmi
       console.log('User signing transaction...')
       const { transactionData } = result
 
@@ -93,84 +99,36 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas
       })
 
-      // Use Farcaster SDK wallet provider
-      const ethProvider = sdk.default.wallet.ethProvider
-      
-      if (!ethProvider) {
-        throw new Error('Farcaster wallet provider not available')
-      }
-
-      // Prepare transaction parameters
+      // Prepare transaction parameters for Wagmi
       const txParams = {
-        to: transactionData.to,
-        data: transactionData.data,
-        gas: transactionData.gasLimit || '0x493e0', // Fallback to 300,000 gas
-        maxFeePerGas: transactionData.maxFeePerGas || undefined,
-        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas || undefined
+        to: transactionData.to as `0x${string}`,
+        data: transactionData.data as `0x${string}`,
+        gas: BigInt(transactionData.gasLimit || '300000'),
+        maxFeePerGas: transactionData.maxFeePerGas ? BigInt(transactionData.maxFeePerGas) : undefined,
+        maxPriorityFeePerGas: transactionData.maxPriorityFeePerGas ? BigInt(transactionData.maxPriorityFeePerGas) : undefined
       }
 
-      // Remove undefined values to avoid wallet issues
+      // Remove undefined values
       Object.keys(txParams).forEach(key => {
-        if ((txParams as any)[key] === undefined || (txParams as any)[key] === '0') {
+        if ((txParams as any)[key] === undefined) {
           delete (txParams as any)[key]
         }
       })
 
-      // Debug: Log the final transaction parameters
-      console.log('Sending transaction with params:', txParams)
+      console.log('Sending transaction with Wagmi:', txParams)
 
-      // Try different approaches to send the transaction
-      let hash = null
+      // Send transaction using Wagmi
+      sendTransaction(txParams)
       
-      try {
-        // Approach 1: Use eth_sendTransaction with hex gas values
-        const txParamsHex = {
-          ...txParams,
-          gas: txParams.gas ? `0x${parseInt(txParams.gas).toString(16)}` as `0x${string}` : undefined,
-          maxFeePerGas: txParams.maxFeePerGas ? `0x${parseInt(txParams.maxFeePerGas).toString(16)}` as `0x${string}` : undefined,
-          maxPriorityFeePerGas: txParams.maxPriorityFeePerGas ? `0x${parseInt(txParams.maxPriorityFeePerGas).toString(16)}` as `0x${string}` : undefined
-        }
-        
-        console.log('Trying with hex gas values:', txParamsHex)
-        
-        hash = await ethProvider.request({
-          method: 'eth_sendTransaction',
-          params: [txParamsHex]
-        })
-        
-        console.log('✅ Transaction sent successfully with hex values')
-        
-      } catch (error) {
-        console.log('❌ Hex approach failed, trying decimal values:', error)
-        
-        try {
-          // Approach 2: Use decimal values
-          hash = await ethProvider.request({
-            method: 'eth_sendTransaction',
-            params: [txParams]
-          })
-          
-          console.log('✅ Transaction sent successfully with decimal values')
-          
-        } catch (error2) {
-          console.log('❌ Decimal approach failed, trying minimal params:', error2)
-          
-          // Approach 3: Minimal parameters
-          const minimalParams = {
-            to: txParams.to,
-            data: txParams.data,
-            gas: txParams.gas
-          }
-          
-          console.log('Trying minimal params:', minimalParams)
-          
-          hash = await ethProvider.request({
-            method: 'eth_sendTransaction',
-            params: [minimalParams]
-          })
-          
-          console.log('✅ Transaction sent successfully with minimal params')
-        }
+      // Wait for the hash to be available from the hook
+      let attempts = 0
+      while (!hash && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        attempts++
+      }
+      
+      if (!hash) {
+        throw new Error('Transaction failed to send or timed out')
       }
 
       console.log('Transaction sent:', hash)
@@ -231,6 +189,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   }
 
   const getButtonText = () => {
+    if (chainId !== baseSepolia.id) {
+      return 'Switch to Base Sepolia'
+    }
+    
     switch (mintStatus) {
       case 'minting':
         return 'Sign Transaction...'
@@ -246,6 +208,10 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
   const getButtonStyle = () => {
     const baseStyle = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
     
+    if (chainId !== baseSepolia.id) {
+      return `${baseStyle} bg-yellow-600 hover:bg-yellow-700 text-white`
+    }
+    
     switch (mintStatus) {
       case 'success':
         return `${baseStyle} bg-green-600 hover:bg-green-700 text-white`
@@ -256,12 +222,20 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
     }
   }
 
+  const handleButtonClick = () => {
+    if (chainId !== baseSepolia.id) {
+      switchChain({ chainId: baseSepolia.id })
+    } else {
+      handleMintNFT()
+    }
+  }
+
   return (
     <>
       <div className="space-y-3">
       <button
-        onClick={handleMintNFT}
-        disabled={isMinting || !isEthProviderAvailable || !gameResult.boardImage}
+        onClick={handleButtonClick}
+        disabled={isMinting || !isEthProviderAvailable || !gameResult.boardImage || !isConnected}
         className={getButtonStyle()}
       >
         {isMinting && (
@@ -276,7 +250,19 @@ export function NFTMintButton({ gameResult, onMintSuccess, onMintError }: NFTMin
         </p>
       )}
       
-      {isEthProviderAvailable && !gameResult.boardImage && (
+      {!isConnected && isEthProviderAvailable && (
+        <p className="text-sm text-yellow-400 text-center">
+          🔗 Please connect your wallet first
+        </p>
+      )}
+      
+      {isConnected && chainId !== baseSepolia.id && (
+        <p className="text-sm text-yellow-400 text-center">
+          ⚠️ Please switch to Base Sepolia network
+        </p>
+      )}
+      
+      {isConnected && chainId === baseSepolia.id && !gameResult.boardImage && (
         <p className="text-sm text-gray-400 text-center">
           Board image required for NFT minting
         </p>
